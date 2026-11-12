@@ -32,8 +32,8 @@ N_DAYS = 7
 # ------------------------------------------------------------------------------------------
 st.markdown("""
 <style>
-.block-container {padding-top: 1.4rem; max-width: 1250px;}
-.ag-title {font-size: 2.1rem; font-weight: 800; margin: 0; color: #ffcd9c; letter-spacing: .5px;}
+.block-container, [data-testid="stMainBlockContainer"] {padding-top: 4.6rem; max-width: 1250px;}
+.ag-title {font-size: 2.1rem; font-weight: 800; margin: 0.4rem 0 0 0; line-height: 1.25; color: #ffcd9c; letter-spacing: .5px;}
 .ag-sub {color: #c9d1e0; margin: 0 0 .6rem 0;}
 .ag-cards {display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 6px 0 10px;}
 @media (max-width: 760px) {.ag-cards {grid-template-columns: repeat(2, minmax(0, 1fr));}}
