@@ -14,9 +14,12 @@ import streamlit as st
 st.set_page_config(page_title='Afterglow', page_icon='assets/afterglow_icon.png', layout='wide',
                    initial_sidebar_state='collapsed')
 
+import functools
+
 import astro
 import charts
 import horizons_check as hc
+import night_page
 import places
 import planner as pl
 import planner_component as pc
@@ -139,8 +142,8 @@ def default_location():
     return dict(lat=51.4779, lon=-0.0015, src='start', name='Greenwich, GB', acc=None, gps_alt=None)
 
 
-def _on_pick():
-    v = ss.get('planner')
+def _on_pick(key='planner'):
+    v = ss.get(key)
     p = v.get('pick') if hasattr(v, 'get') else None
     if not isinstance(p, dict) or 'lat' not in p:
         return
@@ -208,7 +211,10 @@ if 'in_lat' not in ss:
 # ------------------------------------------------------------------------------------------
 st.markdown('<p class="ag-title">Afterglow</p>'
             '<p class="ag-sub">Sunrise, sunset, moonrise and moonset against your real skyline, '
-            'with a forecast of how colourful the sky will be.</p>', unsafe_allow_html=True)
+            'with a forecast of how colourful the sky will be - and, after dark, the stars and the aurora.</p>',
+            unsafe_allow_html=True)
+PAGES = ['Sun & Moon', 'Night sky & aurora']
+page = st.radio('Page', PAGES, horizontal=True, key='page', label_visibility='collapsed')
 
 c1, c2, c3 = st.columns([2.2, 1.2, 0.6], vertical_alignment='bottom')
 with c1:
@@ -256,6 +262,13 @@ day = ss['day']
 model = wx.MODELS[ss.get('model') or list(wx.MODELS)[0]]
 height = float(ss.get('height', 1.7))
 ground = float(ss['ground']) if ss.get('own_ground') and ss.get('ground') is not None else None
+
+if page == PAGES[1]:
+    st.subheader(f'Night of {day:%a %d %b %Y}: stars and aurora')
+    night_page.render(loc, tz, day, place_label, model,
+                      (ground if ground is not None else float(ss.get('last_ground', 0.0))) + height,
+                      functools.partial(_on_pick, 'nightmap'))
+    st.stop()
 
 with st.spinner('Reading the terrain, the sky and the forecast...'):
     A = analyse(round(loc['lat'], 6), round(loc['lon'], 6), tz, day.isoformat(), height, ground,

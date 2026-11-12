@@ -96,3 +96,88 @@ def cloud_layers(profile_rows, lcl_m, time_text):
     ax.set_title(f'Cloud layers above you, {time_text}', fontsize=10, loc='left', color=TXT)
     fig.tight_layout()
     return fig
+
+
+
+# ------------------------------------------------------------------------------------------
+# night page
+# ------------------------------------------------------------------------------------------
+SCORE_COLS = [(80, '#27ae60'), (60, '#7dcf6b'), (40, '#f1c40f'), (20, '#e67e22'), (0, '#c0392b')]
+
+
+def _score_col(s):
+    for lim, c in SCORE_COLS:
+        if s >= lim:
+            return c
+    return SCORE_COLS[-1][1]
+
+
+def tonight(details, tz, title):
+    """Sky quality per hour at the observer, with cloud layers, twilight and moonlight."""
+    from zoneinfo import ZoneInfo
+    z = ZoneInfo(tz)
+    fig, ax = plt.subplots(figsize=(8.2, 3.6), dpi=150)
+    _style(fig, ax)
+    xs = list(range(len(details)))
+    labels = [d['time'].astimezone(z).strftime('%H') for d in details]
+    for x, d in zip(xs, details):
+        if d.get('sun_alt', -90) > -18:                         # twilight
+            ax.axvspan(x - 0.5, x + 0.5, color='#3d5ea8', alpha=0.18 if d['sun_alt'] < -6 else 0.32, lw=0)
+        if d.get('moon_alt', -90) > 0:                          # moon up
+            ax.axvspan(x - 0.5, x + 0.5, ymin=0.93, ymax=1.0, color='#dcefff',
+                       alpha=0.25 + 0.6 * d.get('moon_illum', 0), lw=0)
+    ok = [d for d in details if d.get('score', -1) >= 0]
+    ax.bar([xs[i] for i, d in enumerate(details) if d.get('score', -1) >= 0], [d['score'] for d in ok],
+           color=[_score_col(d['score']) for d in ok], width=0.72, label='sky quality (0-100)', zorder=3)
+    for key, col, name in (('low', '#9aa7bd', 'low cloud %'), ('mid', '#d7dde8', 'mid cloud %'),
+                           ('high', '#ffffff', 'high cloud %')):
+        ax.plot([xs[i] for i, d in enumerate(details) if key in d], [d[key] for d in details if key in d],
+                color=col, lw=1.4, ls='-' if key == 'low' else ('--' if key == 'mid' else ':'), label=name, zorder=4)
+    ax.set_xticks(xs)
+    ax.set_xticklabels(labels, fontsize=8)
+    ax.set_ylim(0, 108)
+    ax.set_xlim(-0.6, len(xs) - 0.4)
+    ax.set_xlabel(f'Hour ({tz}); blue = twilight, white strip on top = Moon above the horizon')
+    ax.set_ylabel('Quality / cloud (%)')
+    ax.set_title(title, fontsize=11, loc='left', color=TXT)
+    leg = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.2), ncol=4, fontsize=8, frameon=False)
+    for t in leg.get_texts():
+        t.set_color(TXT)
+    fig.tight_layout()
+    return fig
+
+
+def kp_chart(series, tz, mlat_abs, kp_overhead, kp_horizon):
+    from zoneinfo import ZoneInfo
+    from datetime import datetime, timezone, timedelta
+    z = ZoneInfo(tz)
+    now = datetime.now(timezone.utc)
+    s = [k for k in series if k['time'] >= now - timedelta(days=2)]
+    fig, ax = plt.subplots(figsize=(8.2, 3.3), dpi=150)
+    _style(fig, ax)
+    cols = {'observed': '#6fd0dc', 'estimated': '#9fd8e0', 'predicted': '#ffcd9c'}
+    for k in s:
+        x = k['time'].astimezone(z).replace(tzinfo=None)
+        c = '#e74c3c' if k['kp'] >= 5 else cols.get(k['kind'], '#aab4c6')
+        ax.bar(x, k['kp'], width=0.115, align='edge', color=c, alpha=0.95 if k['kind'] != 'predicted' else 0.75)
+    ax.axhline(kp_overhead, color='#2ecc71', lw=1.3, ls='--')
+    ax.text(0.005, kp_overhead + 0.12, f'aurora overhead from about Kp {kp_overhead:.1f}', color='#2ecc71',
+            fontsize=8, transform=ax.get_yaxis_transform())
+    if kp_horizon < kp_overhead - 0.2:
+        ax.axhline(kp_horizon, color='#f1c40f', lw=1.1, ls=':')
+        ax.text(0.005, kp_horizon + 0.12, f'low on the horizon from about Kp {kp_horizon:.1f}', color='#f1c40f',
+                fontsize=8, transform=ax.get_yaxis_transform())
+    ax.axvline(now.astimezone(z).replace(tzinfo=None), color='#ff4f7b', lw=1.2)
+    ax.set_ylim(0, 9.2)
+    ax.set_ylabel('Kp index')
+    ax.set_title(f'Geomagnetic activity (NOAA Kp): past 2 days and forecast; your geomagnetic latitude '
+                 f'{mlat_abs:.1f}°', fontsize=10, loc='left', color=TXT)
+    import matplotlib.dates as mdates
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%a %Hh', tz=None))
+    ax.xaxis.set_major_locator(mdates.HourLocator(byhour=[0, 12]))
+    for lab_ in ax.get_xticklabels():
+        lab_.set_fontsize(8)
+    ax.text(0.995, 0.96, 'blue = measured, peach = forecast, red = storm (Kp 5+), pink line = now',
+            color=MUTED, fontsize=7, ha='right', va='top', transform=ax.transAxes)
+    fig.tight_layout()
+    return fig
