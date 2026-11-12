@@ -1,0 +1,77 @@
+/* Light-mode proofing (built from the Sidereal Oracle fix). When a phone or computer is set to light mode,
+   Streamlit draws some of its own widgets from its light theme. These rules keep them dark with light text.
+   They do not touch Afterglow's own coloured text. */
+:root { color-scheme: dark; }          /* the browser's own controls (date picker, scrollbars) drawn dark */
+    /* Input boxes, dropdown lists and calendars always dark with light text, even when a phone in light mode makes
+       Streamlit draw them white (user report: white text on white boxes). In dark mode these are the same colours. */
+    [data-testid="stTextInputRootElement"], [data-testid="stTextAreaRootElement"], [data-testid="stNumberInputContainer"],
+    [data-testid="stNumberInputStepDown"], [data-testid="stNumberInputStepUp"], [data-testid="stDateInputField"],
+    [data-testid="stSelectbox"] div:has(> input), [data-testid="stTimeInput"] div:has(> input),
+    [data-testid="stMultiSelect"] div:has(> input),
+    [data-testid="stSelectbox"] [role="combobox"], [data-testid="stTimeInput"] [role="combobox"] {
+        background-color: #111927 !important; color: #f4efe8 !important; }
+    [data-testid="stApp"] input, [data-testid="stApp"] textarea, .stApp input, .stApp textarea {
+        background-color: transparent !important; color: #f4efe8 !important;
+        -webkit-text-fill-color: #f4efe8 !important; caret-color: #f4efe8 !important; }
+    .stApp input::placeholder, .stApp textarea::placeholder { color: #dfe5efb3 !important;
+        -webkit-text-fill-color: #dfe5efb3 !important; }
+    [data-testid="stSelectboxVirtualDropdown"], [data-testid="stSelectboxVirtualDropdown"] *,
+    [data-testid="stMultiSelectDropdown"], [data-testid="stMultiSelectDropdown"] *, [role="listbox"], [role="listbox"] *,
+    [data-testid="stDateInputCalendar"], [data-testid="stDateTimeInputCalendar"] {
+        background-color: #111927 !important; color: #f4efe8 !important; }
+    [role="listbox"] [role="option"]:hover, [role="listbox"] [role="option"][aria-selected="true"],
+    [data-testid="stSelectboxVirtualDropdown"] [role="option"]:hover,
+    [data-testid="stSelectboxVirtualDropdown"] [role="option"][aria-selected="true"] {
+        background-color: #21304a !important; }
+/* light-mode proof: light text and dark buttons whatever theme Streamlit is drawing */
+    :is(button[data-testid="stBaseButton-secondary"], button[data-testid="stBaseButton-secondaryFormSubmit"], button[data-testid="stBaseButton-segmented_control"], button[data-testid="stBaseButton-pills"], button[data-testid="stPopoverButton"], button[kind="segmented_control"], button[kind="pills"], button[data-variant="segmented_control"], button[data-variant="pills"], [data-testid="stButtonGroup"] button) { background-color: #0b111c !important; color: #f4efe8 !important;
+        border: 1px solid #3b4a66 !important; }
+    :is(button[data-testid="stBaseButton-secondary"], button[data-testid="stBaseButton-secondaryFormSubmit"], button[data-testid="stBaseButton-segmented_control"], button[data-testid="stBaseButton-pills"], button[data-testid="stPopoverButton"], button[kind="segmented_control"], button[kind="pills"], button[data-variant="segmented_control"], button[data-variant="pills"], [data-testid="stButtonGroup"] button) :is(p, span, div) { color: #f4efe8 !important; }
+    :is(button[data-testid="stBaseButton-secondary"], button[data-testid="stBaseButton-secondaryFormSubmit"], button[data-testid="stBaseButton-segmented_control"], button[data-testid="stBaseButton-pills"], button[data-testid="stPopoverButton"], button[kind="segmented_control"], button[kind="pills"], button[data-variant="segmented_control"], button[data-variant="pills"], [data-testid="stButtonGroup"] button):hover { border-color: #ff9f6b !important; }
+    :is(button[data-testid="stBaseButton-segmented_controlActive"], button[data-testid="stBaseButton-pillsActive"], button[kind="segmented_controlActive"], button[kind="pillsActive"], button[data-variant="segmented_control"][data-selected], button[data-variant="pills"][data-selected], [data-testid="stButtonGroup"] button[data-selected], [data-testid="stButtonGroup"] button[aria-checked="true"], [data-testid="stButtonGroup"] button[aria-pressed="true"]) { background-color: rgba(181,70,26,0.35) !important; color: #ffffff !important;
+        border: 1px solid #b5461a !important; }
+    :is(button[data-testid="stBaseButton-segmented_controlActive"], button[data-testid="stBaseButton-pillsActive"], button[kind="segmented_controlActive"], button[kind="pillsActive"], button[data-variant="segmented_control"][data-selected], button[data-variant="pills"][data-selected], [data-testid="stButtonGroup"] button[data-selected], [data-testid="stButtonGroup"] button[aria-checked="true"], [data-testid="stButtonGroup"] button[aria-pressed="true"]) :is(p, span, div) { color: #ffffff !important; }
+    [data-testid="stSidebar"] { background-color: #111927 !important; }
+    [data-testid="stSidebarNav"] a:is(:hover, [aria-current="page"]) { background-color: rgba(59,74,102,0.45) !important; }
+    [data-testid="stSidebarNav"] a :is(span, p) { color: #f4efe8 !important; }
+    [data-testid="stDialog"] [role="dialog"], [data-testid="stPopoverBody"] {
+        background-color: #111927 !important; color: #f4efe8 !important; border: 1px solid #3b4a66; }
+    [data-testid="stDialog"] [role="dialog"] button[aria-label="Close"] { color: #f4efe8 !important; }
+    [data-testid="stExpander"] details, [data-testid="stExpander"] summary { border-color: #3b4a66 !important; }
+    [data-testid="stExpander"] summary { background-color: #111927 !important; color: #f4efe8 !important; }
+    [data-testid="stExpander"] summary:hover { background-color: rgba(59,74,102,0.45) !important; }
+    [data-testid="stExpander"] summary :is(p, span, div, svg) { color: #f4efe8 !important; }
+    [data-testid="stExpander"] details { background-color: transparent !important; }
+    [data-testid="stFileUploaderDropzone"] { background-color: #111927 !important;
+        border: 1px dashed #3b4a66 !important; color: #f4efe8 !important; }
+    [data-testid="stFileUploaderDropzoneInstructions"] :is(span, small, div, p) { color: #dfe5ef !important; }
+    [data-testid="stFileUploader"] :is(svg, small) { color: #dfe5ef !important; }
+    [data-testid="stHeader"] :is(button, a, span, svg) { color: #f4efe8 !important; }
+    [data-testid="stTooltipIcon"] svg, [data-testid="stWidgetLabel"] svg { color: #dfe5ef !important; }
+    [data-testid="stCheckbox"] [role="checkbox"], [data-testid="stCheckbox"] span:has(> input) {
+        border-color: #dfe5ef !important; }
+    :is(.stTooltipContent, .stTooltipErrorContent, [data-testid="stMainMenuPopover"], [data-testid="stTooltipContent"], [data-testid="stTooltipErrorContent"], [data-testid="stToast"], [data-testid="stDateInputQuickSelectPopover"], [data-testid="stDateInputHeaderPickerPopover"], [data-testid="stDateTimeInputPopoverTime"], [data-testid="stColorPickerPopover"], [data-testid="stJsonPathTooltipBody"], [data-testid="stDataFrameTooltipContent"], [data-testid="stDataFrameColumnMenu"], [data-testid="stDataFrameColumnFormattingMenu"], [data-testid="stDataFrameColumnVisibilityMenu"], [data-testid="stDataFrameStatisticsMenu"], [data-testid="stDataFrameButtonActionMenu"], [data-testid="stTopNavPopoverBody"], [data-testid="stMenuButtonBody"], [data-testid="stClearCacheDialog"]), div:has(> :is(.stTooltipContent, .stTooltipErrorContent)) {
+        background-color: #111927 !important; color: #f4efe8 !important; border-color: #3b4a66 !important; }
+    :is(.stTooltipContent, .stTooltipErrorContent, [data-testid="stMainMenuPopover"], [data-testid="stTooltipContent"], [data-testid="stTooltipErrorContent"], [data-testid="stToast"], [data-testid="stDateInputQuickSelectPopover"], [data-testid="stDateInputHeaderPickerPopover"], [data-testid="stDateTimeInputPopoverTime"], [data-testid="stColorPickerPopover"], [data-testid="stJsonPathTooltipBody"], [data-testid="stDataFrameTooltipContent"], [data-testid="stDataFrameColumnMenu"], [data-testid="stDataFrameColumnFormattingMenu"], [data-testid="stDataFrameColumnVisibilityMenu"], [data-testid="stDataFrameStatisticsMenu"], [data-testid="stDataFrameButtonActionMenu"], [data-testid="stTopNavPopoverBody"], [data-testid="stMenuButtonBody"], [data-testid="stClearCacheDialog"]) :is(p, span, li, label, small, b, strong, em, div, button, td, th) { color: #f4efe8 !important; }
+    :is(.stTooltipContent, .stTooltipErrorContent, [data-testid="stMainMenuPopover"], [data-testid="stTooltipContent"], [data-testid="stTooltipErrorContent"], [data-testid="stToast"], [data-testid="stDateInputQuickSelectPopover"], [data-testid="stDateInputHeaderPickerPopover"], [data-testid="stDateTimeInputPopoverTime"], [data-testid="stColorPickerPopover"], [data-testid="stJsonPathTooltipBody"], [data-testid="stDataFrameTooltipContent"], [data-testid="stDataFrameColumnMenu"], [data-testid="stDataFrameColumnFormattingMenu"], [data-testid="stDataFrameColumnVisibilityMenu"], [data-testid="stDataFrameStatisticsMenu"], [data-testid="stDataFrameButtonActionMenu"], [data-testid="stTopNavPopoverBody"], [data-testid="stMenuButtonBody"], [data-testid="stClearCacheDialog"]) a { color: #6fd0dc !important; }
+    :is(.stTooltipContent, .stTooltipErrorContent, [data-testid="stMainMenuPopover"], [data-testid="stTooltipContent"], [data-testid="stTooltipErrorContent"], [data-testid="stToast"], [data-testid="stDateInputQuickSelectPopover"], [data-testid="stDateInputHeaderPickerPopover"], [data-testid="stDateTimeInputPopoverTime"], [data-testid="stColorPickerPopover"], [data-testid="stJsonPathTooltipBody"], [data-testid="stDataFrameTooltipContent"], [data-testid="stDataFrameColumnMenu"], [data-testid="stDataFrameColumnFormattingMenu"], [data-testid="stDataFrameColumnVisibilityMenu"], [data-testid="stDataFrameStatisticsMenu"], [data-testid="stDataFrameButtonActionMenu"], [data-testid="stTopNavPopoverBody"], [data-testid="stMenuButtonBody"], [data-testid="stClearCacheDialog"]) :is(button, [role^="menuitem"], [role="option"], li) { background-color: transparent !important; }
+    :is(.stTooltipContent, .stTooltipErrorContent, [data-testid="stMainMenuPopover"], [data-testid="stTooltipContent"], [data-testid="stTooltipErrorContent"], [data-testid="stToast"], [data-testid="stDateInputQuickSelectPopover"], [data-testid="stDateInputHeaderPickerPopover"], [data-testid="stDateTimeInputPopoverTime"], [data-testid="stColorPickerPopover"], [data-testid="stJsonPathTooltipBody"], [data-testid="stDataFrameTooltipContent"], [data-testid="stDataFrameColumnMenu"], [data-testid="stDataFrameColumnFormattingMenu"], [data-testid="stDataFrameColumnVisibilityMenu"], [data-testid="stDataFrameStatisticsMenu"], [data-testid="stDataFrameButtonActionMenu"], [data-testid="stTopNavPopoverBody"], [data-testid="stMenuButtonBody"], [data-testid="stClearCacheDialog"]) :is(button, [role^="menuitem"], [role="option"], li):is(:hover, :focus-visible) {
+        background-color: rgba(59,74,102,0.45) !important; }
+    :is(.stTooltipContent, .stTooltipErrorContent, [data-testid="stMainMenuPopover"], [data-testid="stTooltipContent"], [data-testid="stTooltipErrorContent"], [data-testid="stToast"], [data-testid="stDateInputQuickSelectPopover"], [data-testid="stDateInputHeaderPickerPopover"], [data-testid="stDateTimeInputPopoverTime"], [data-testid="stColorPickerPopover"], [data-testid="stJsonPathTooltipBody"], [data-testid="stDataFrameTooltipContent"], [data-testid="stDataFrameColumnMenu"], [data-testid="stDataFrameColumnFormattingMenu"], [data-testid="stDataFrameColumnVisibilityMenu"], [data-testid="stDataFrameStatisticsMenu"], [data-testid="stDataFrameButtonActionMenu"], [data-testid="stTopNavPopoverBody"], [data-testid="stMenuButtonBody"], [data-testid="stClearCacheDialog"]) :is([aria-checked="true"], [aria-selected="true"], [aria-pressed="true"]) {
+        background-color: rgba(59,74,102,0.7) !important; }
+    :is(.stTooltipContent, .stTooltipErrorContent, [data-testid="stMainMenuPopover"], [data-testid="stTooltipContent"], [data-testid="stTooltipErrorContent"], [data-testid="stToast"], [data-testid="stDateInputQuickSelectPopover"], [data-testid="stDateInputHeaderPickerPopover"], [data-testid="stDateTimeInputPopoverTime"], [data-testid="stColorPickerPopover"], [data-testid="stJsonPathTooltipBody"], [data-testid="stDataFrameTooltipContent"], [data-testid="stDataFrameColumnMenu"], [data-testid="stDataFrameColumnFormattingMenu"], [data-testid="stDataFrameColumnVisibilityMenu"], [data-testid="stDataFrameStatisticsMenu"], [data-testid="stDataFrameButtonActionMenu"], [data-testid="stTopNavPopoverBody"], [data-testid="stMenuButtonBody"], [data-testid="stClearCacheDialog"]) hr, [data-testid="stMainMenuDivider"] { border-color: #3b4a66 !important;
+        background-color: #3b4a66 !important; }
+    [data-testid="stAlertContainer"], [data-testid="stAlert"] > div { background-color: #16283a !important;
+        border: 1px solid #3b4a66 !important; color: #f4efe8 !important; }
+    [data-testid="stAlertContainer"] :is(p, span, li, b, strong, em, div, small) { color: #f4efe8 !important; }
+    [data-testid="stAlertContainer"] a { color: #6fd0dc !important; }
+    body [data-testid="stCode"] pre { background-color: #172134 !important;
+        border: 1px solid #3b4a66 !important; color: #ffcd9c !important; }
+    body [data-testid="stCode"] pre :is(div, code) { background-color: transparent !important; }
+    body [data-testid="stCode"] pre :is(div, code, span) { color: #ffcd9c !important;
+        -webkit-text-fill-color: #ffcd9c !important; }
+    body [data-testid="stCode"] button { background-color: #111927 !important; color: #f4efe8 !important;
+        border: 1px solid #3b4a66 !important; }
+    body [data-testid="stCode"] button svg { color: #f4efe8 !important; fill: currentColor; }
+    body [data-testid="stMarkdownContainer"] code:not(pre code) { background-color: #172134 !important;
+        color: #ffcd9c !important; -webkit-text-fill-color: #ffcd9c !important; }

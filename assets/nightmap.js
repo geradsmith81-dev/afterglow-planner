@@ -2,8 +2,8 @@
 // Leaflet (window.L) is bundled in front of this file by night_component.py.
 
 const DIRS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-const SCALE = [[80, 'Excellent', '#27ae60'], [60, 'Good', '#7dcf6b'], [40, 'Fair', '#f1c40f'],
-               [20, 'Poor', '#e67e22'], [0, 'Bad', '#c0392b']];
+const SCALE = [[80, 'Excellent', '#2fc46f'], [60, 'Good', '#7dcf6b'], [40, 'Fair', '#f1c40f'],
+               [20, 'Poor', '#f0913a'], [0, 'Bad', '#f5847c']];
 
 function compass(az) { return DIRS[Math.round((((az % 360) + 360) % 360) / 22.5) % 16]; }
 function lab(s) { for (const r of SCALE) if (s >= r[0]) return r; return SCALE[SCALE.length - 1]; }
@@ -107,8 +107,13 @@ function build(parent) {
   const map = L.map(root.querySelector('.ag-map'), { zoomControl: true, worldCopyJump: true });
   S.map = map;
   const base = {
-    'Dark map': L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19, subdomains: 'abcd', attribution: '&copy; OpenStreetMap contributors &copy; CARTO' }),
+    // Esri World Dark Gray Canvas: free, no key (the CARTO dark map now asks for an API key)
+    'Dark map': L.layerGroup([
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 16, attribution: 'Base map &copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors' }),
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 16 }),
+    ]),
     'Topographic': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
       maxZoom: 17, subdomains: 'abc',
       attribution: 'Map &copy; OpenStreetMap contributors, SRTM | Style &copy; OpenTopoMap (CC-BY-SA)' }),
