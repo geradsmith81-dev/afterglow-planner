@@ -139,23 +139,7 @@ function build(parent) {
   });
 
   // ---- controls
-  root.querySelector('.ag-gps').addEventListener('click', () => {
-    if (!('geolocation' in navigator)) {
-      S.status.textContent = 'This browser cannot share its location.';
-      return;
-    }
-    S.status.textContent = 'Asking your device for its position...';
-    navigator.geolocation.getCurrentPosition((p) => {
-      const c = p.coords;
-      S.status.textContent = `Found you (within ${Math.round(c.accuracy)} m). Loading...`;
-      S.send('pick', { lat: c.latitude, lon: c.longitude, acc: c.accuracy, alt: c.altitude,
-                       alt_acc: c.altitudeAccuracy, src: 'gps', ts: Date.now() });
-    }, (err) => {
-      const why = err.code === 1 ? 'Permission was refused. Allow location for this site in the browser settings.'
-        : err.code === 3 ? 'The device took too long. Try again outdoors.' : 'The position is not available.';
-      S.status.textContent = why;
-    }, { enableHighAccuracy: true, timeout: 25000, maximumAge: 0 });
-  });
+  root.querySelector('.ag-gps').addEventListener('click', () => locate(S, false));
   S.slider.addEventListener('input', () => { stopPlay(S); render(S); });
   root.querySelector('.ag-play').addEventListener('click', () => {
     if (S.playing) { stopPlay(S); return; }
@@ -178,6 +162,63 @@ function build(parent) {
     S.ro.observe(root);
   }
   return S;
+}
+
+// Ask the device for its position (GPS on phones, Wi-Fi/IP position on computers).
+// auto=true is the automatic request made when the app first opens.
+function locate(S, auto) {
+  if (!('geolocation' in navigator)) {
+    S.status.textContent = 'This browser cannot share its location. Search for a place or tap the map.';
+    return;
+  }
+  S.status.textContent = auto ? 'Finding your location... (allow location if your browser asks)'
+                              : 'Asking your device for its position...';
+  navigator.geolocation.getCurrentPosition((p) => {
+    const c = p.coords;
+    S.status.textContent = `Found you (within ${Math.round(c.accuracy)} m). Loading...`;
+    S.send('pick', { lat: c.latitude, lon: c.longitude, acc: c.accuracy, alt: c.altitude,
+                     alt_acc: c.altitudeAccuracy, src: 'gps', ts: Date.now() });
+  }, (err) => {
+    let why;
+    if (err.code === 1) {
+      const framed = window.top !== window.self;
+      why = framed
+        ? 'The page frame blocked location. Open Afterglow full-screen, then press "Use my location".'
+        : 'Location permission was refused. Allow location for this site in the browser settings, '
+          + 'then press "Use my location".';
+      if (framed) {
+        S.status.textContent = why + ' ';
+        const a = el('a', 'ag-fulllink', 'Open full-screen');
+        a.href = window.location.href; a.target = '_top';
+        S.status.appendChild(a);
+        return;
+      }
+    } else if (err.code === 3) {
+      why = 'The device took too long to find you. Try again outdoors, or press "Use my location".';
+    } else {
+      why = 'Your position is not available right now. Press "Use my location" to try again.';
+    }
+    S.status.textContent = (auto ? 'Showing a starting place. ' : '') + why;
+  }, { enableHighAccuracy: true, timeout: 25000, maximumAge: 0 });
+}
+
+// Once per visit: if the app is still on its starting guess, ask for the real position.
+function autoLocate(S) {
+  if (S.autoTried) return;
+  S.autoTried = true;
+  try {
+    if (sessionStorage.getItem('afterglow-auto-located')) return;
+    sessionStorage.setItem('afterglow-auto-located', '1');
+  } catch (e) { /* storage blocked: still try once for this page */ }
+  const go = () => locate(S, true);
+  if (navigator.permissions && navigator.permissions.query) {
+    navigator.permissions.query({ name: 'geolocation' }).then((st) => {
+      if (st.state === 'denied') {
+        S.status.textContent = 'Showing a starting place: location is blocked for this site in the browser '
+          + 'settings. Search for a place or tap the map.';
+      } else go();
+    }).catch(go);
+  } else go();
 }
 
 function stopPlay(S) {
@@ -450,9 +491,11 @@ function update(S, d) {
     });
     S.jumps.prepend(b);
   }
-  const src = d.src === 'gps' ? `GPS fix${d.acc ? ` (within ${Math.round(d.acc)} m)` : ''}`
-    : d.src === 'map' ? 'picked on the map' : d.src === 'search' ? 'from place search' : 'starting place';
+  const src = d.src === 'gps' ? `your position${d.acc ? ` (within ${Math.round(d.acc)} m)` : ''}`
+    : d.src === 'map' ? 'picked on the map' : d.src === 'search' ? 'from place search'
+    : 'starting guess from your time zone';
   S.status.textContent = `${d.place || ''} · ${d.lat.toFixed(5)}, ${d.lon.toFixed(5)} · ${src}`;
+  if (d.src === 'start') autoLocate(S);
   drawMe(S); drawFixed(S); drawRidge(S); render(S);
   setTimeout(() => { S.map.invalidateSize(); drawPano(S, +S.slider.value); }, 120);
 }

@@ -39,3 +39,4 @@
 .ag-root .leaflet-control-layers-toggle::after { content: "Layers"; }
 .ag-root .leaflet-control-layers-expanded { color: #222; max-height: 300px; overflow-y: auto; }
 .ag-root .leaflet-container { font-family: inherit; }
+.ag-fulllink { color: #6fd0dc; font-weight: 700; margin-left: 4px; }

@@ -183,6 +183,11 @@ def _use_coords():
 
 def _today():
     ss['day'] = datetime.now(ZoneInfo(ss['tz'])).date()
+    ss['day_auto'] = True
+
+
+def _date_changed():
+    ss['day_auto'] = False     # the user chose a date: stop following 'today' at the location
 
 
 if 'loc' not in ss:
@@ -191,8 +196,10 @@ loc = ss['loc']
 tz = places.tz_at(loc['lat'], loc['lon'])
 ss['tz'] = tz
 place_label = loc.get('name') or places.describe(loc['lat'], loc['lon'])
-if 'day' not in ss:
+if 'day' not in ss or ss.get('day_auto', True):
+    # until the user picks a date, show 'today' at the place shown (it changes when GPS moves the place)
     ss['day'] = datetime.now(ZoneInfo(tz)).date()
+    ss['day_auto'] = True
 if 'in_lat' not in ss:
     ss['in_lat'], ss['in_lon'] = round(loc['lat'], 5), round(loc['lon'], 5)
 
@@ -208,7 +215,8 @@ with c1:
     st.text_input('Search for a place', key='q', placeholder='Town, park or landmark - or tap "Use my location" below',
                   on_change=_do_search)
 with c2:
-    st.date_input('Date', key='day', min_value=date(1900, 1, 1), max_value=date(2100, 12, 31), format='YYYY-MM-DD')
+    st.date_input('Date', key='day', min_value=date(1900, 1, 1), max_value=date(2100, 12, 31), format='YYYY-MM-DD',
+                  on_change=_date_changed)
 with c3:
     st.button('Today', on_click=_today, width='stretch')
 if ss.get('search_error'):
