@@ -1,0 +1,45 @@
+AFTERGLOW - PUTTING IT ONLINE (GitHub + Streamlit Community Cloud)
+==================================================================
+Same route as your Sidereal Oracle. Free. Takes about 15 minutes.
+
+1. UNZIP
+   Right-click "Afterglow_github.zip" > Extract All. Open the folder until you see "app.py".
+   (Extract All often makes a folder inside a folder - go in until app.py is visible.)
+
+2. NEW GITHUB REPOSITORY
+   github.com > + (top right) > New repository.
+   Name: afterglow-planner   Public   Create repository.
+   IMPORTANT: this is a NEW repository. Do not upload into sidereal-lilly-chart or sidereal-oracle.
+
+3. UPLOAD THE FILES
+   In the new repository: "uploading an existing file". Select EVERYTHING inside the folder that
+   holds app.py (files and the folders assets and ephem) and drag it in. Commit changes.
+   Drag-and-drop skips folders whose names start with a dot, so do step 4.
+
+4. THE DARK THEME FILE (by hand, once)
+   Add file > Create new file. Type the name exactly:   .streamlit/config.toml
+   Paste the text from "config.toml for GitHub (paste).txt". Commit changes.
+
+5. DEPLOY
+   share.streamlit.io > Create app > "Deploy a public app from GitHub".
+   Repository: <your account>/afterglow-planner   Branch: main   Main file: app.py
+   Advanced settings > Python version 3.12. Deploy.
+   The first start takes a few minutes: it installs the parts and downloads NASA JPL's 32 MB
+   planetary file.
+
+6. ON YOUR PHONE
+   Open the app's address in Safari (iPhone) or Chrome (Android).
+   iPhone: Share > Add to Home Screen.  Android: menu > Add to home screen / Install app.
+   The first time you press "Use my location", allow location for the site.
+   (Location works only on the secure https:// address, which Streamlit Cloud gives you.)
+
+LATER CHANGES
+   Upload the changed files into afterglow-planner (Add file > Upload files), commit,
+   then on the app: Manage app (bottom right) > three dots > Reboot app.
+
+NOTES
+   * The app uses free public services (Open-Meteo, AWS Terrain Tiles, NASA GIBS, JPL Horizons,
+     Windy embed). Open-Meteo's free tier is for non-commercial use (10,000 requests a day);
+     each place you open uses about 3 to 5 requests, each cached for 30 minutes.
+   * The privacy statement: positions are used only to calculate and are not stored, except
+     that results are cached in the server's memory for up to 30 minutes.

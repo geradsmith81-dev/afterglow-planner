@@ -1,0 +1,9 @@
+streamlit>=1.55
+skyfield>=1.54
+numpy>=2.0
+requests>=2.31
+pillow>=10
+matplotlib>=3.9
+timezonefinder>=8
+geonamescache>=2.0
+tzdata

@@ -1,0 +1,41 @@
+/* Afterglow planner component */
+.ag-root { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #f4efe8; }
+.ag-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; }
+.ag-status { font-size: 0.85rem; color: #c9d1e0; }
+.ag-btn { background: #1d2738; color: #f4efe8; border: 1px solid #3b4a66; border-radius: 8px;
+          padding: 7px 12px; font-size: 0.92rem; cursor: pointer; min-height: 38px; }
+.ag-btn:hover { border-color: #ff9f6b; }
+.ag-gps, .ag-btn-primary { background: #b5461a; border-color: #b5461a; color: #fff; font-weight: 600; }
+.ag-map { width: 100%; height: 440px; border-radius: 10px; overflow: hidden; border: 1px solid #2a3550;
+          background: #0b111c; }
+@media (max-width: 640px) { .ag-map { height: 340px; } }
+.ag-timebar { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.ag-slider { flex: 1; accent-color: #ff7a3d; height: 30px; }
+.ag-clock { font-size: 1.35rem; font-weight: 700; min-width: 64px; text-align: right;
+            font-variant-numeric: tabular-nums; color: #ffcd9c; }
+.ag-jumps { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.ag-chip { background: #151d2b; color: #e9e4dc; border: 1px solid #33405a; border-radius: 16px;
+           padding: 5px 10px; font-size: 0.82rem; cursor: pointer; min-height: 32px; }
+.ag-chip b { color: #fff; }
+.ag-chip-sun { border-color: #8a6a2c; }
+.ag-chip-moon { border-color: #3d5d8a; }
+.ag-chip-now { border-color: #ff4f7b; }
+.ag-readout { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.88rem; margin: 4px 0 8px; }
+.ag-ro-sun b { color: #ffe680; }
+.ag-ro-moon b { color: #dcefff; }
+.ag-panohead { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; font-size: 0.86rem;
+               margin-bottom: 4px; }
+.ag-panotitle { font-weight: 700; color: #ffcd9c; }
+.ag-panohead label { cursor: pointer; }
+.ag-pano { width: 100%; height: 240px; display: block; border-radius: 10px; border: 1px solid #2a3550; }
+.ag-legend { display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 0.78rem; margin-top: 6px; opacity: 0.9; }
+.ag-maplabel span { display: inline-block; white-space: nowrap; background: rgba(11, 17, 28, 0.82);
+                    color: #fff; border: 1px solid; border-radius: 6px; padding: 1px 5px; font-size: 11px;
+                    transform: translate(-50%, -50%); }
+.ag-pop { font-size: 0.85rem; display: flex; flex-direction: column; gap: 6px; }
+/* Leaflet's layer icon is an image file that is not shipped; use a text button instead */
+.ag-root .leaflet-control-layers-toggle { background-image: none !important; width: auto !important;
+    height: 34px !important; padding: 0 10px; line-height: 34px; font-weight: 600; color: #222; text-decoration: none; }
+.ag-root .leaflet-control-layers-toggle::after { content: "Layers"; }
+.ag-root .leaflet-control-layers-expanded { color: #222; max-height: 300px; overflow-y: auto; }
+.ag-root .leaflet-container { font-family: inherit; }

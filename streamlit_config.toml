@@ -1,0 +1,34 @@
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false
+
+# Afterglow is always dark; the same colours are given for the light slot so phones in light mode stay dark.
+[theme]
+base = "dark"
+font = "sans serif"
+primaryColor = "#b5461a"
+backgroundColor = "#0b111c"
+secondaryBackgroundColor = "#111927"
+textColor = "#f4efe8"
+linkColor = "#6fd0dc"
+
+[theme.dark]
+primaryColor = "#b5461a"
+backgroundColor = "#0b111c"
+secondaryBackgroundColor = "#111927"
+textColor = "#f4efe8"
+linkColor = "#6fd0dc"
+
+[theme.light]
+primaryColor = "#b5461a"
+backgroundColor = "#0b111c"
+secondaryBackgroundColor = "#111927"
+textColor = "#f4efe8"
+linkColor = "#6fd0dc"
+borderColor = "rgba(250, 250, 250, 0.2)"
+dataframeBorderColor = "rgba(250, 250, 250, 0.2)"
+dataframeHeaderBackgroundColor = "#172134"
+dataframeHeaderTextColor = "#f4efe8"
+grayTextColor = "rgba(250, 250, 250, 0.6)"
