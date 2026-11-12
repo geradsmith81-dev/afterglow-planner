@@ -4,6 +4,7 @@ Afterglow - sunrise, sunset, moonrise and moonset planner with terrain and cloud
 Run with:  streamlit run app.py
 """
 import html
+import os
 import math
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -38,6 +39,7 @@ st.markdown("""
 .block-container, [data-testid="stMainBlockContainer"] {padding-top: 4.6rem; max-width: 1250px;}
 .ag-title {font-size: 2.1rem; font-weight: 800; margin: 0.4rem 0 0 0; line-height: 1.25; color: #ffcd9c; letter-spacing: .5px;}
 .ag-sub {color: #c9d1e0; margin: 0 0 .6rem 0;}
+.ag-cards, .ag-score, .ag-tab, .ag-wrap {color: #f4efe8;}
 .ag-cards {display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 6px 0 10px;}
 @media (max-width: 760px) {.ag-cards {grid-template-columns: repeat(2, minmax(0, 1fr));}}
 .ag-card {background: #111927; border: 1px solid #2a3550; border-radius: 12px; padding: 10px 12px;}
@@ -64,6 +66,30 @@ table.ag-tab td {border-bottom: 1px solid #1c2638; padding: 5px 6px; vertical-al
 .ag-wrap {overflow-x: auto;}
 </style>
 """, unsafe_allow_html=True)
+
+# Always dark, whatever the phone or computer is set to and even if .streamlit/config.toml is missing or wrong:
+# page background, Streamlit's own text, and Streamlit's light-theme widgets (assets/light_mode.css).
+_SCOPE = ':is([data-testid="stMain"], [data-testid="stDialog"], [data-testid="stPopoverBody"], [data-testid="stSidebar"])'
+_TEXT = (':is(p, li, span, label, small, summary, b, strong, em, td, th, [data-testid="stMarkdownContainer"], '
+         '[data-testid="stWidgetLabel"], [data-testid="stWidgetLabel"] *)')
+# NB: no spaces between the :is(...) and :not(...) parts - a space would mean 'descendant of' and break the rule
+_NOT = ''.join(':not(%s)' % x for x in (
+    ':is(h1, h2, h3, h4, h5, h6) *', '[class^="ag-"]', '[class*=" ag-"]', '[class^="ag-"] *', '[class*=" ag-"] *',
+    '.leaflet-container *', '[style*="color"]', '[style*="color"] *', 'a', 'a *', 'code', 'code *',
+    '[data-testid="stBaseButton-primary"] *', '[data-testid="stCaptionContainer"] *'))
+FORCE_TEXT_SELECTOR = 'body ' + _SCOPE + ' ' + _TEXT + _NOT
+_FORCE_DARK = (
+    '.stApp, [data-testid="stApp"], [data-testid="stAppViewContainer"], [data-testid="stMain"] '
+    '{ background-color: #0b111c !important; }\n'
+    '[data-testid="stHeader"] { background-color: rgba(11, 17, 28, 0.92) !important; }\n'
+    '[data-testid="stSidebar"] > div:first-child { background-color: #111927 !important; }\n'
+    + FORCE_TEXT_SELECTOR + ' { color: #f4efe8 !important; }\n'
+    '[data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] :is(p, span, li, b, strong, em) '
+    '{ color: #dfe5ef !important; }\n'
+    '[data-testid="stCaptionContainer"] a, [data-testid="stMarkdownContainer"] a { color: #6fd0dc !important; }\n'
+    'h1, h2, h3, h4 { color: #ffcd9c !important; }\n')
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'light_mode.css'), encoding='utf-8') as _f:
+    st.markdown('<style>' + _FORCE_DARK + _f.read() + '</style>', unsafe_allow_html=True)
 
 
 # ------------------------------------------------------------------------------------------
@@ -402,7 +428,7 @@ with t_out:
                 cells.append('<td>-</td><td></td>')
                 continue
             pill = (f'<span class="ag-pill" style="background:{a["colour"]}">{a["score"]}</span> {a["label"]}'
-                    if a else '<span style="color:#7d8799">no forecast</span>')
+                    if a else '<span style="color:#a7b0bf">no forecast</span>')
             cells.append(f"<td>{hm(e)} <span style='color:#aab4c6'>({e['az']:.0f}°)</span></td><td>{pill}</td>")
         rows.append('<tr>' + ''.join(cells) + '</tr>')
     st.markdown('<div class="ag-wrap"><table class="ag-tab"><tr><th>Date</th><th>Sunrise</th><th>Colour</th>'

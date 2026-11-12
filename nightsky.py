@@ -32,8 +32,8 @@ GRID_N = 7
 GRID_STEP_KM = 50.0
 GRID_VARS = ["cloud_cover", "cloud_cover_low", "cloud_cover_mid", "cloud_cover_high",
              "relative_humidity_2m", "visibility", "wind_speed_250hPa"]
-LABELS = [(80, 'Excellent', '#27ae60'), (60, 'Good', '#7dcf6b'), (40, 'Fair', '#f1c40f'),
-          (20, 'Poor', '#e67e22'), (0, 'Bad', '#c0392b')]
+LABELS = [(80, 'Excellent', '#2fc46f'), (60, 'Good', '#7dcf6b'), (40, 'Fair', '#f1c40f'),
+          (20, 'Poor', '#f0913a'), (0, 'Bad', '#f5847c')]
 
 
 def label_for(score):

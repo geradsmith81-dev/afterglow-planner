@@ -32,8 +32,8 @@ import weather as wx
 RAY_KM = [30, 80, 150, 250, 350]
 R_KM = 6371.0
 
-LABELS = [(80, 'Spectacular potential', '#ff4f7b'), (60, 'Great', '#ff7a3d'), (40, 'Good', '#f2b13d'),
-          (20, 'Fair', '#c9b28a'), (0, 'Poor', '#7d8799')]
+LABELS = [(80, 'Spectacular potential', '#ff7f9f'), (60, 'Great', '#ff7a3d'), (40, 'Good', '#f2b13d'),
+          (20, 'Fair', '#c9b28a'), (0, 'Poor', '#a7b0bf')]
 
 
 def ray_points(lat, lon, az):
