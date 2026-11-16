@@ -15,6 +15,7 @@ import events_component as ec
 import night_component as nc
 import night_page
 import nightsky as ns
+import skymap
 import weather as wx
 
 FORECAST_DAYS = 15.5
@@ -71,6 +72,31 @@ def comet_rows():
     import io
     df = mpc.load_comets_dataframe(io.BytesIO(ev._cached_file(ev.COMET_URL, 'CometEls.txt')))
     return df.sort_values('reference').groupby('designation', as_index=False).last().set_index('designation', drop=False)
+
+
+@st.cache_data(ttl=3600, max_entries=60, show_spinner=False)
+def radiant_sky(sh, lat, lon, elev, tz, evening_iso, best_time):
+    from skyfield.api import Star
+    win = ns.night_window(lat, lon, elev, date.fromisoformat(evening_iso), tz)
+    target = Star(ra_hours=sh['ra'] / 15.0, dec_degrees=sh['dec'])
+    hint = ('Meteors can appear anywhere in the sky; their trails point back to this spot (the radiant). '
+            'Face this way, lie back and look about halfway up the sky, a little to one side of the radiant: '
+            'meteors there show longer trails. The higher the radiant, the more meteors you see.')
+    return skymap.build(lat, lon, elev, tz, skymap.night_times(win), target, f"{sh['name']} radiant",
+                        best_time, 'radiant', hint)
+
+
+@st.cache_data(ttl=3600, max_entries=60, show_spinner=False)
+def comet_sky(name, lat, lon, elev, tz, day_iso, best_time, mag_txt):
+    from skyfield.data import mpc
+    from skyfield.constants import GM_SUN_Pitjeva_2005_km3_s2 as GM_SUN
+    row = comet_rows().loc[name]
+    body = astro.eph['sun'] + mpc.comet_orbit(row, astro.ts, GM_SUN)
+    win = ns.night_window(lat, lon, elev, date.fromisoformat(day_iso), tz)
+    hint = (f'Predicted magnitude now {mag_txt} (MPC / JPL). Brighter than 6 is a naked-eye object under a dark sky, '
+            f'up to 9 needs binoculars, up to 12 a small telescope. Use the bright stars on the map to find the spot, '
+            f'then sweep slowly with binoculars.')
+    return skymap.build(lat, lon, elev, tz, skymap.night_times(win), body, name, best_time, 'comet', hint)
 
 
 @st.cache_data(ttl=30 * 86400, max_entries=40, show_spinner=False)
@@ -137,6 +163,12 @@ def sky_outlook(when, fc, hist):
 def _table(head, rows):
     return ('<div class="ag-wrap"><table class="ag-tab"><tr>' + ''.join(f'<th>{h}</th>' for h in head) + '</tr>'
             + ''.join('<tr>' + ''.join(f'<td>{c}</td>' for c in r) + '</tr>' for r in rows) + '</table></div>')
+
+
+def _table_ids(head, rows, ids):
+    return ('<div class="ag-wrap"><table class="ag-tab"><tr>' + ''.join(f'<th>{h}</th>' for h in head) + '</tr>'
+            + ''.join(f'<tr data-id="{html.escape(i)}">' + ''.join(f'<td>{c}</td>' for c in r) + '</tr>'
+                      for i, r in zip(ids, rows)) + '</table></div>')
 
 
 def _dur(sec):
@@ -224,12 +256,18 @@ def render(loc, tz, day, place_label, model, elev, pick_for, profile=None):
             st.info('No eclipse is visible from here in this period. Untick "Only eclipses visible from here" '
                     'to see all of them, or look further ahead.')
             return
-        st.markdown(_table(['Date', 'Eclipse', 'From your location', 'Best moment', 'Sky'], rows), unsafe_allow_html=True)
+        ids = [e['id'] for e, _ in choices]
+        prev = st.session_state.get('ev_rowpick')
+        prev = prev.get('row') if hasattr(prev, 'get') else None
+        sel = prev if prev in ids else ids[0]
+        st.markdown('**Tap an eclipse in the table to show it on the map below.**')
+        chosen = ec.row_picker(_table_ids(['Date', 'Eclipse', 'From your location', 'Best moment', 'Sky'], rows, ids),
+                               sel, 'ev_rowpick')
+        if chosen in ids:
+            sel = chosen
         st.caption('Sky: forecast chance of a clear view when the eclipse is within about two weeks; beyond that, how '
                    'often the sky was mostly clear at this place, season and hour in the past 10 years.')
-        labels = [f"{e['greatest'].astimezone(z):%d %b %Y} - {e['type']} {e['kind']} eclipse" for e, _ in choices]
-        k = st.selectbox('Eclipse details', range(len(labels)), format_func=lambda i: labels[i], key='ev_pick')
-        e, L = choices[k]
+        e, L = choices[ids.index(sel)]
         _eclipse_details(e, L, loc, tz, place_label, fc, hist, pick_for('evmap'))
 
     # ======================================================================================
@@ -268,6 +306,9 @@ def render(loc, tz, day, place_label, model, elev, pick_for, profile=None):
         st.markdown(f"**{sh['name']}** - active {sh['active']}; radiant RA {sh['ra']}°, Dec {sh['dec']:+d}°; meteors "
                     f"enter at {sh['v']} km/s" + (f"; debris of **{sh['parent']}**" if sh['parent'] else '') + '. '
                     + html.escape(long))
+        st.markdown(f"**Where to look: the radiant of the {sh['name']}**")
+        sky = radiant_sky(sh, lat, lon, round(elev), tz, n['evening'].isoformat(), bt)
+        ec.show_sky(sky, key='ev_sky_shower')
         if bt and now <= bt <= now + timedelta(days=FORECAST_DAYS):
             st.markdown('**Sky-quality map for that night** (move the slider to the best hour):')
             _night_map(loc, tz, n['evening'], place_label, model, elev, pick_for('ev_night_shower'),
@@ -308,9 +349,24 @@ def render(loc, tz, day, place_label, model, elev, pick_for, profile=None):
             sky = sky_outlook(tn['best_time'], fc, hist)[0] if tn['visible'] else ''
             rows.append([f"<b>{html.escape(c['name'])}</b>", now_rng,
                          f"{c['mpc_best']:.1f} / {jp}", f"{c['perihelion']:%d %b %Y}, {c['q']:.2f} au", tt, sky])
-        st.markdown(_table(['Comet', 'Magnitude now (MPC / JPL)', 'Brightest in 90 days, away from the Sun (MPC / JPL)',
-                            'Closest to the Sun', f'Tonight ({day:%d %b})', 'Sky tonight'], rows), unsafe_allow_html=True)
-        k = st.selectbox('Comet details', range(len(cl)), format_func=lambda i: cl[i]['name'], key='ev_comet')
+        ids = [c['name'] for c in cl]
+        prev = st.session_state.get('ev_cometpick')
+        prev = prev.get('row') if hasattr(prev, 'get') else None
+        sel = prev if prev in ids else ids[0]
+        st.markdown('**Tap a comet in the table to show where to find it.**')
+        chosen = ec.row_picker(_table_ids(['Comet', 'Magnitude now (MPC / JPL)',
+                                           'Brightest in 90 days, away from the Sun (MPC / JPL)',
+                                           'Closest to the Sun', f'Tonight ({day:%d %b})', 'Sky tonight'], rows, ids),
+                               sel, 'ev_cometpick')
+        if chosen in ids:
+            sel = chosen
+        k = ids.index(sel)
+        st.subheader(cl[k]['name'])
+        st.markdown(f"**Where to find {html.escape(cl[k]['name'])} tonight**")
+        sky = comet_sky(cl[k]['name'], lat, lon, round(elev), tz, day.isoformat(),
+                        tonight[k]['best_time'] if tonight[k]['visible'] else None,
+                        f"{cl[k]['mpc'][0]:.1f}" + (f" / {cl[k]['jpl'][0]:.1f}" if cl[k]['jpl'] else ''))
+        ec.show_sky(sky, key='ev_sky_comet')
         fig = charts.comet_brightness(cl[k], tz)
         st.pyplot(fig, width='stretch')
         plt.close(fig)
@@ -331,10 +387,13 @@ def render(loc, tz, day, place_label, model, elev, pick_for, profile=None):
 # ------------------------------------------------------------------------------------------
 def _eclipse_details(e, L, loc, tz, place_label, fc, hist, on_pick):
     z = ZoneInfo(tz)
+    st.subheader(f"{e['type']} {e['kind']} eclipse, {e['greatest'].astimezone(z):%A %d %B %Y}")
     if e['kind'] == 'solar':
         st.warning('Never look at the Sun, even when it is mostly covered, without certified eclipse glasses '
                    '(ISO 12312-2) or a proper solar filter on binoculars and cameras. Only during totality itself '
                    'is it safe to look without them.')
+    map_box = st.container()          # the map goes here, above the timetable
+    if e['kind'] == 'solar':
         if L:
             rows = []
             for code, label in (('C1', 'Eclipse begins (first contact)'), ('C2', f"{L['type']} phase begins"),
@@ -358,7 +417,7 @@ def _eclipse_details(e, L, loc, tz, place_label, fc, hist, on_pick):
         breaks = [[0.8, '#ff4f7b'], [0.6, '#ff7a3d'], [0.4, '#f2b13d'], [0.2, '#c9b28a'], [0.0, '#7d8799']]
         legend = [['20% or less', '#7d8799'], ['20-40%', '#c9b28a'], ['40-60%', '#f2b13d'], ['60-80%', '#ff7a3d'],
                   ['80% or more', '#ff4f7b']]
-        title = (f"{e['type']} solar eclipse, {e['greatest']:%d %b %Y}: coloured areas see the Sun partly covered "
+        title = (f"{e['type']} solar eclipse, {e['greatest'].astimezone(z):%d %b %Y}: coloured areas see the Sun partly covered "
                  f"(share of its diameter)")
         line_label = (f"central line ({e['type'].lower()}" + (f", band about {width:.0f} km wide" if width else '') + ')')
         data = dict(lat=loc['lat'], lon=loc['lon'], place=place_label, cells=cells, step=3.0, breaks=breaks,
@@ -378,7 +437,7 @@ def _eclipse_details(e, L, loc, tz, place_label, fc, hist, on_pick):
         data = dict(lat=loc['lat'], lon=loc['lon'], place=place_label, cells=cells, step=3.0,
                     breaks=[[2, '#6fd0dc'], [1, '#2f6f86']], legend=[['whole eclipse', '#6fd0dc'],
                                                                      ['part of it (Moon rises or sets)', '#2f6f86']],
-                    legend_title='Moon up:', line=[], title=f"{e['type']} lunar eclipse, {e['greatest']:%d %b %Y}: "
+                    legend_title='Moon up:', line=[], title=f"{e['type']} lunar eclipse, {e['greatest'].astimezone(z):%d %b %Y}: "
                                                             f"where the Moon is above the horizon", zoom=2,
                     nonce=e['id'])
     # centre on you if the eclipse is seen here, otherwise on the area where it is best seen
@@ -391,4 +450,5 @@ def _eclipse_details(e, L, loc, tz, place_label, fc, hist, on_pick):
         lo0 = best[0][1]
         data['view'] = [float(np.mean([c[0] for c in best])),
                         float(lo0 + np.mean([((c[1] - lo0 + 180) % 360) - 180 for c in best]))]
-    ec.show(data, on_pick=on_pick, key='evmap')
+    with map_box:
+        ec.show(data, on_pick=on_pick, key='evmap')

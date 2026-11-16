@@ -1,0 +1,9 @@
+/* Afterglow sky pointer (sky map + compass) */
+.ag-skyrow { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.ag-skybox { display: flex; flex-direction: column; gap: 6px; }
+.ag-sky canvas { display: block; border-radius: 12px; }
+.ag-cap { font-size: 0.8rem; color: #dfe5ef; max-width: 460px; }
+.ag-point { font-size: 0.92rem; color: #f4efe8; max-width: 320px; line-height: 1.4; }
+.ag-point b { color: #ffcd9c; }
+.ag-dim { color: #c9d1e0; font-size: 0.82rem; }
+.ag-sky .ag-live { align-self: flex-start; }
