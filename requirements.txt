@@ -7,3 +7,4 @@ matplotlib>=3.9
 timezonefinder>=8
 geonamescache>=2.0
 tzdata
+pandas>=2.0

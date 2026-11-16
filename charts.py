@@ -181,3 +181,73 @@ def kp_chart(series, tz, mlat_abs, kp_overhead, kp_horizon):
             color=MUTED, fontsize=7, ha='right', va='top', transform=ax.transAxes)
     fig.tight_layout()
     return fig
+
+
+
+# ------------------------------------------------------------------------------------------
+# events page
+# ------------------------------------------------------------------------------------------
+def meteor_night(night, name, tz):
+    """Expected meteors per hour through the best night (dark site and your sky)."""
+    from zoneinfo import ZoneInfo
+    import numpy as np
+    z = ZoneInfo(tz)
+    fig, ax = plt.subplots(figsize=(8.2, 3.4), dpi=150)
+    _style(fig, ax)
+    x = np.arange(len(night['times'])) / 4.0
+    sun, moon, ill = night['sun_alt'], night['moon_alt'], night['illum']
+    for k in range(len(x) - 1):
+        if sun[k] > -18:
+            ax.axvspan(x[k], x[k + 1], color='#3d5ea8', alpha=0.18 if sun[k] < -6 else 0.32, lw=0)
+        if moon[k] > 0:
+            ax.axvspan(x[k], x[k + 1], ymin=0.93, ymax=1.0, color='#dcefff', alpha=0.25 + 0.6 * float(ill[k]), lw=0)
+    ax.fill_between(x, night['hr_dark'], color='#ffcd9c', alpha=0.25, lw=0)
+    ax.plot(x, night['hr_dark'], color='#ffcd9c', lw=2, label='under a dark sky')
+    ax.plot(x, night['hr_here'], color='#6fd0dc', lw=2, ls='--', label='with the light around you (estimate)')
+    ax2 = ax.twinx()
+    ax2.plot(x, night['rad_alt'], color='#aab4c6', lw=1, ls=':')
+    ax2.set_ylim(0, 95)
+    ax2.set_ylabel('Radiant altitude (deg, dotted)', color=MUTED, fontsize=8)
+    ax2.tick_params(colors=MUTED, labelsize=8)
+    ticks = list(range(0, len(night['times']), 8))
+    ax.set_xticks([t / 4.0 for t in ticks])
+    ax.set_xticklabels([night['times'][t].astimezone(z).strftime('%H') for t in ticks], fontsize=8)
+    ax.set_xlim(0, x[-1])
+    ax.set_ylim(0, max(1.0, float(np.max(night['hr_dark'])) * 1.15))
+    ax.set_xlabel(f'Hour ({tz}); blue = twilight, white strip on top = Moon up')
+    ax.set_ylabel('Meteors per hour')
+    ax.set_title(f"{name}: expected meteors, night of {night['evening']:%a %d %b}", fontsize=11, loc='left', color=TXT)
+    leg = ax.legend(loc='upper left', fontsize=8, frameon=False)
+    for t in leg.get_texts():
+        t.set_color(TXT)
+    fig.tight_layout()
+    return fig
+
+
+def comet_brightness(c, tz):
+    """Predicted magnitude over the next 90 days: MPC and JPL predictions (brighter = higher)."""
+    from zoneinfo import ZoneInfo
+    z = ZoneInfo(tz)
+    fig, ax = plt.subplots(figsize=(8.2, 3.4), dpi=150)
+    _style(fig, ax)
+    d = [t.astimezone(z).replace(tzinfo=None) for t in c['dates']]
+    ax.plot(d, c['mpc'], color='#ffcd9c', lw=2, label='Minor Planet Center parameters')
+    if c.get('jpl'):
+        ax.plot(d, c['jpl'], color='#6fd0dc', lw=2, ls='--', label='JPL Horizons')
+    for m, txt in ((6, 'naked eye (dark sky)'), (9, 'binoculars'), (12, 'small telescope')):
+        ax.axhline(m, color='#3b4a66', lw=0.8, ls=':')
+        ax.text(d[0], m - 0.15, txt, color=MUTED, fontsize=7)
+    lo = min(min(c['mpc']), min(c['jpl']) if c.get('jpl') else 99)
+    hi = max(max(c['mpc']), max(c['jpl']) if c.get('jpl') else -99)
+    ax.set_ylim(max(hi, 12.5) + 0.5, min(lo, 5.5) - 0.5)
+    ax.set_ylabel('Magnitude (smaller = brighter)')
+    import matplotlib.dates as mdates
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%d %b'))
+    for lab_ in ax.get_xticklabels():
+        lab_.set_fontsize(8)
+    ax.set_title(f"{c['name']}: predicted brightness, next 90 days", fontsize=11, loc='left', color=TXT)
+    leg = ax.legend(loc='lower right', fontsize=8, frameon=False)
+    for t in leg.get_texts():
+        t.set_color(TXT)
+    fig.tight_layout()
+    return fig

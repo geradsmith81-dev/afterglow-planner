@@ -20,6 +20,7 @@ import functools
 import astro
 import charts
 import horizons_check as hc
+import events_page
 import night_page
 import places
 import planner as pl
@@ -239,7 +240,7 @@ st.markdown('<p class="ag-title">Afterglow</p>'
             '<p class="ag-sub">Sunrise, sunset, moonrise and moonset against your real skyline, '
             'with a forecast of how colourful the sky will be - and, after dark, the stars and the aurora.</p>',
             unsafe_allow_html=True)
-PAGES = ['Sun & Moon', 'Night sky & aurora']
+PAGES = ['Sun & Moon', 'Night sky & aurora', 'Eclipses, meteors & comets']
 page = st.radio('Page', PAGES, horizontal=True, key='page', label_visibility='collapsed')
 
 c1, c2, c3 = st.columns([2.2, 1.2, 0.6], vertical_alignment='bottom')
@@ -294,6 +295,18 @@ if page == PAGES[1]:
     night_page.render(loc, tz, day, place_label, model,
                       (ground if ground is not None else float(ss.get('last_ground', 0.0))) + height,
                       functools.partial(_on_pick, 'nightmap'))
+    st.stop()
+
+if page == PAGES[2]:
+    st.subheader('Eclipses, meteor showers and comets')
+    try:
+        with st.spinner('Reading the terrain around you...'):
+            _prof = get_horizon(round(loc['lat'], 6), round(loc['lon'], 6), height, ground,
+                                float(ss.get('max_km', 150)), float(ss.get('near_m', 200)))
+    except Exception:
+        _prof = None
+    _elev = _prof['h_obs'] if _prof else (ground if ground is not None else float(ss.get('last_ground', 0.0))) + height
+    events_page.render(loc, tz, day, place_label, model, _elev, lambda key: functools.partial(_on_pick, key), _prof)
     st.stop()
 
 with st.spinner('Reading the terrain, the sky and the forecast...'):
