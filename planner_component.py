@@ -30,6 +30,8 @@ CHIPS = [  # event key, chip text, body
     ('dawn_civil', 'Blue hour', 'sun'),
     ('sun_m4_up', 'Golden hour', 'sun'),
     ('sunrise*', 'Sunrise', 'sun'),
+    ('sun_transit', 'Solar noon', 'sun'),
+    ('sun_antitransit', 'True midnight', 'sun'),
     ('sun_p6_down', 'Golden hour', 'sun'),
     ('sunset*', 'Sunset', 'sun'),
     ('sun_m4_down', 'Blue hour', 'sun'),

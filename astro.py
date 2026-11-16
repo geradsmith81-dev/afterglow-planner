@@ -257,8 +257,15 @@ def compute_day(lat, lon, elev_m, day, tz, profile=None, temp_c=None, pres_hpa=N
             add(f'sun_{tag}_up', f'sun at {deg:+.0f} deg (rising)', 'sun', 'light', roots[rising], True)
             add(f'sun_{tag}_down', f'sun at {deg:+.0f} deg (setting)', 'sun', 'light', roots[~rising], True)
 
-    # --- transits (highest point): sign change of the altitude derivative from + to -
-    for b in bodies:
+    # --- Sun: solar noon and true midnight from the exact meridian crossings
+    for e in sun_meridians(lat, lon, elev_m, start, end, temp_c, pres_hpa):
+        if e['kind'] == 'noon':
+            add('sun_transit', 'solar noon', 'sun', 'transit', [ts.from_datetime(e['utc']).tt], True)
+        else:
+            add('sun_antitransit', 'true midnight', 'sun', 'transit', [ts.from_datetime(e['utc']).tt], True)
+
+    # --- Moon transit (highest point): sign change of the altitude derivative from + to -
+    for b in [x for x in bodies if x != 'sun']:
         alt = geo[b][0]
         d = np.diff(alt)
         k = np.where((d[:-1] > 0) & (d[1:] <= 0))[0] + 1
@@ -281,6 +288,37 @@ def compute_day(lat, lon, elev_m, day, tz, profile=None, temp_c=None, pres_hpa=N
     info = dict(moon_phase_deg=ang, moon_illum=frac, moon_phase_name=phase_name(ang),
                 temp_c=temp_c, pres_hpa=pres_hpa, elev_m=elev_m)
     return dict(track=track, events=events, info=info, start=start, end=end)
+
+
+# ----------------------------------------------------------------------------------------
+# solar noon and true midnight (meridian transits)
+# ----------------------------------------------------------------------------------------
+def sun_meridians(lat, lon, elev_m, start_utc, end_utc, temp_c=STD_T, pres_hpa=STD_P):
+    """Solar noon (Sun crosses the meridian, due south or north: highest) and true midnight
+    (Sun crosses the anti-meridian: lowest) between start and end.  Exact crossing times from
+    Skyfield's meridian-transit search (to about 1 ms).  Returns a list of
+    dict(kind='noon'|'midnight', utc, alt (apparent, deg), az)."""
+    topos = wgs84.latlon(lat, lon, elevation_m=float(elev_m))
+    f = almanac.meridian_transits(eph, SUN, topos)
+    t, y = almanac.find_discrete(ts.from_datetime(start_utc), ts.from_datetime(end_utc), f)
+    out = []
+    if len(t):
+        alt, az, _ = positions(observer(lat, lon, elev_m), 'sun', t)
+        app = alt + refraction_deg(alt, temp_c, pres_hpa)
+        for ti, yi, a, z in zip(t, y, np.atleast_1d(app), np.atleast_1d(az)):
+            out.append(dict(kind='noon' if yi == 1 else 'midnight', utc=ti.utc_datetime(), alt=float(a), az=float(z)))
+    return out
+
+
+def noon_and_midnight(lat, lon, elev_m, day, tz, temp_c=STD_T, pres_hpa=STD_P):
+    """The day's solar noon, and the true midnight of the night that follows it
+    (which can fall after midnight on the clock, i.e. on the next date)."""
+    start, end = local_day_bounds(day, tz)
+    ev = sun_meridians(lat, lon, elev_m, start, end + timedelta(hours=14), temp_c, pres_hpa)
+    noon = next((e for e in ev if e['kind'] == 'noon' and e['utc'] < end), None)
+    after = noon['utc'] if noon else start
+    midnight = next((e for e in ev if e['kind'] == 'midnight' and e['utc'] > after), None)
+    return noon, midnight
 
 
 def first(events, key):

@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import streamlit as st
 
+import astro
 import charts
 import night_component as nc
 import nightsky as ns
@@ -86,6 +87,10 @@ def render(loc, tz, day, place_label, model, elev, on_pick):
     else:
         lo = float(np.min(win['sun_alt'])) if len(win['sun_alt']) else 0.0
         dark_txt, dark_sub = 'no full dark', f'twilight all night (Sun lowest {lo:.0f}°)'
+    _mids = [e for e in astro.sun_meridians(lat, lon, elev, win['start'], win['end'])
+             if e['kind'] == 'midnight']
+    if _mids:
+        dark_sub += f" · true midnight {_hm(_mids[0]['utc'], z)} (Sun lowest, {_mids[0]['alt']:.0f}°)"
     mr = [e for e in win['events'] if e['key'] == 'moonrise_flat']
     ms = [e for e in win['events'] if e['key'] == 'moonset_flat']
     illum = win['info']['moon_illum']

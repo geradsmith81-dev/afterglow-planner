@@ -356,6 +356,13 @@ for name, k1, k2 in (('Blue hour', 'dawn_civil', 'sun_m4_up'), ('Golden hour', '
     s = span(k1, k2)
     if s:
         bits.append(f'<b>{name}</b> {s}')
+_noon, _mid = astro.noon_and_midnight(loc['lat'], loc['lon'], A['elev'], day, tz,
+                                      res['info']['temp_c'], res['info']['pres_hpa'])
+if _noon:
+    bits.append(f"<b>Solar noon</b> {hm(_noon)} (Sun {_noon['alt']:.0f}° high)")
+if _mid:
+    _d = _mid['utc'].astimezone(z).date()
+    bits.append(f"<b>True midnight</b> {hm(_mid)}{_d.strftime(' %a') if _d != day else ''} (Sun {_mid['alt']:.0f}°)")
 bits.append(f"<b>Moon</b> {res['info']['moon_phase_name'].lower()}, {res['info']['moon_illum'] * 100:.0f}% lit")
 st.markdown('<p class="ag-light">' + ' &nbsp;·&nbsp; '.join(bits) + f' &nbsp;·&nbsp; times in {tz}</p>',
             unsafe_allow_html=True)
@@ -485,7 +492,8 @@ PRETTY = {
     'dawn_astronomical': 'Astronomical dawn (Sun -18°)', 'dawn_nautical': 'Nautical dawn (Sun -12°)',
     'dawn_civil': 'Civil dawn, blue hour begins (Sun -6°)', 'sun_m4_up': 'Golden hour begins (Sun -4°)',
     'sunrise_flat': 'Sunrise, flat horizon (almanac)', 'sunrise': 'Sun appears over the terrain',
-    'sun_p6_up': 'Golden hour ends (Sun +6°)', 'sun_transit': 'Solar noon (Sun highest)',
+    'sun_p6_up': 'Golden hour ends (Sun +6°)', 'sun_transit': 'Solar noon (Sun on the meridian, highest)',
+    'sun_antitransit': 'True midnight (Sun on the anti-meridian, lowest)',
     'sun_p6_down': 'Golden hour begins (Sun +6°)', 'sunset': 'Sun disappears behind the terrain',
     'sunset_flat': 'Sunset, flat horizon (almanac)', 'sun_m4_down': 'Golden hour ends, blue hour begins (Sun -4°)',
     'dusk_civil': 'Civil dusk, blue hour ends (Sun -6°)', 'dusk_nautical': 'Nautical dusk (Sun -12°)',
