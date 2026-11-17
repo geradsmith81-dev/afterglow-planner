@@ -7,3 +7,6 @@
 .ag-point b { color: #ffcd9c; }
 .ag-dim { color: #c9d1e0; font-size: 0.82rem; }
 .ag-sky .ag-live { align-self: flex-start; }
+.ag-aimrow { display: flex; flex-wrap: wrap; gap: 8px; }
+.ag-aimrow[hidden], .ag-rot[hidden] { display: none; }
+.ag-aimcap b { color: #ffcd9c; }

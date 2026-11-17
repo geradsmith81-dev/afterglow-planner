@@ -8,3 +8,4 @@ timezonefinder>=8
 geonamescache>=2.0
 tzdata
 pandas>=2.0
+pygeomag>=1.1

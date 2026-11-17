@@ -25,12 +25,17 @@ function canvasFor(c, w, h) {
 }
 
 function build(parent) {
-  const S = { heading: null, live: false };
+  const S = { heading: null, live: false, aim: false, cam: null, northUp: false };
   const root = el('div', 'ag-root ag-sky');
   root.innerHTML = `
     <div class="ag-skyrow">
       <div class="ag-skybox"><canvas class="ag-dome"></canvas>
-        <div class="ag-cap">Sky map, looking up: north at the top, <b>east on the left</b>, the edge is the horizon.</div></div>
+        <div class="ag-cap ag-domecap"></div>
+        <div class="ag-aimrow" hidden>
+          <button type="button" class="ag-btn ag-aim">Aim with my phone's camera</button>
+          <button type="button" class="ag-btn ag-rot" hidden>Keep north at the top</button>
+        </div>
+        <div class="ag-cap ag-aimcap"></div></div>
       <div class="ag-skybox"><canvas class="ag-compass"></canvas>
         <div class="ag-point"></div>
         <button type="button" class="ag-btn ag-live">Use my phone's compass</button>
@@ -50,13 +55,45 @@ function build(parent) {
   S.clock = root.querySelector('.ag-clock');
   S.hint = root.querySelector('.ag-hint');
   S.livecap = root.querySelector('.ag-livecap');
+  S.domecap = root.querySelector('.ag-domecap');
+  S.aimrow = root.querySelector('.ag-aimrow');
+  S.aimcap = root.querySelector('.ag-aimcap');
   S.slider.addEventListener('input', () => draw(S));
   root.querySelector('.ag-live').addEventListener('click', () => startLive(S));
+  root.querySelector('.ag-aim').addEventListener('click', () => startAim(S));
+  root.querySelector('.ag-rot').addEventListener('click', () => {
+    S.northUp = !S.northUp;
+    root.querySelector('.ag-rot').textContent = S.northUp ? 'Turn the map with me' : 'Keep north at the top';
+    draw(S);
+  });
   if (window.ResizeObserver) { S.ro = new ResizeObserver(() => { if (S.d) draw(S); }); S.ro.observe(root); }
   return S;
 }
 
 // ---- phone compass ------------------------------------------------------------------------
+const RAD = Math.PI / 180;
+function decl(S) { return (S.d && typeof S.d.decl === 'number') ? S.d.decl : 0; }
+
+// Direction of the phone's BACK CAMERA (out of the back of the screen) from the W3C device-orientation
+// angles.  With alpha measured from north, the rotation Rz(alpha) Rx(beta) Ry(gamma) takes the phone's
+// axes (x right, y to the top edge, z out of the screen) to east-north-up; the camera looks along -z.
+function cameraDir(alphaN, beta, gamma) {
+  const a = alphaN * RAD, b = beta * RAD, g = gamma * RAD;
+  const E = -Math.cos(a) * Math.sin(g) - Math.sin(a) * Math.sin(b) * Math.cos(g);
+  const N = -Math.sin(a) * Math.sin(g) + Math.cos(a) * Math.sin(b) * Math.cos(g);
+  const U = -Math.cos(b) * Math.cos(g);
+  return [E, N, U];
+}
+function northAlpha(S, e) {
+  if (typeof e.alpha !== 'number') return null;
+  if (typeof e.webkitCompassHeading === 'number') {                // iPhone / iPad: alpha has an arbitrary zero
+    const off = (360 - e.webkitCompassHeading) - e.alpha;          // keep a smoothed offset to magnetic north
+    const v = [Math.cos(off * RAD), Math.sin(off * RAD)];
+    S.offv = S.offv ? [0.9 * S.offv[0] + 0.1 * v[0], 0.9 * S.offv[1] + 0.1 * v[1]] : v;
+    return e.alpha + Math.atan2(S.offv[1], S.offv[0]) / RAD;
+  }
+  return e.absolute ? e.alpha : null;                              // Android: absolute events only
+}
 function onOrient(S, e) {
   let h = null;
   if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;          // iPhone / iPad
@@ -64,34 +101,77 @@ function onOrient(S, e) {
   if (h === null) return;
   const so = (screen.orientation && typeof screen.orientation.angle === 'number') ? screen.orientation.angle
     : (typeof window.orientation === 'number' ? window.orientation : 0);
-  S.heading = (h + so + 360) % 360;
-  S.gotHeading = true;
-  if (!S.raf) S.raf = requestAnimationFrame(() => { S.raf = null; drawCompass(S); });
+  if (S.live) { S.heading = (h + so + decl(S) + 720) % 360; S.gotHeading = true; }
+  if (S.aim && typeof e.beta === 'number' && typeof e.gamma === 'number') {
+    const an = northAlpha(S, e);
+    if (an !== null) {
+      const v = cameraDir(an, e.beta, e.gamma);
+      S.camv = S.camv ? S.camv.map((x, k) => 0.7 * x + 0.3 * v[k]) : v;           // steady the jitter
+      const [E, N, U] = S.camv, n = Math.hypot(E, N, U) || 1;
+      S.cam = { alt: Math.asin(Math.max(-1, Math.min(1, U / n))) / RAD,
+                az: ((Math.atan2(E, N) / RAD) + decl(S) + 720) % 360 };
+      S.gotCam = true;
+    }
+  }
+  if (!S.raf) S.raf = requestAnimationFrame(() => { S.raf = null; if (S.aim) draw(S); else drawCompass(S); });
+}
+function listen(S, on) {
+  if (on && !S.handler) {
+    S.handler = (e) => onOrient(S, e);
+    window.addEventListener('deviceorientationabsolute', S.handler, true);
+    window.addEventListener('deviceorientation', S.handler, true);
+  } else if (!on && S.handler) {
+    window.removeEventListener('deviceorientationabsolute', S.handler, true);
+    window.removeEventListener('deviceorientation', S.handler, true);
+    S.handler = null;
+  }
+}
+async function sensorPermission(cap) {
+  if (typeof DeviceOrientationEvent === 'undefined') { cap.textContent = 'This device has no compass.'; return false; }
+  try {
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {      // iOS asks first
+      const r = await DeviceOrientationEvent.requestPermission();
+      if (r !== 'granted') { cap.textContent = 'Permission to use the motion sensors was refused.'; return false; }
+    }
+  } catch (err) { cap.textContent = 'The motion sensors could not be started.'; return false; }
+  return true;
+}
+function declText(S) {
+  const dd = S.d && S.d.decl;
+  if (typeof dd !== 'number') return 'Phone compasses point to magnetic north and can be off by 10-20°.';
+  return `Corrected for the ${Math.abs(dd).toFixed(1)}° ${dd >= 0 ? 'east' : 'west'} difference between magnetic ` +
+    'and true north here (World Magnetic Model 2025); nearby metal, cars and cases with magnets can still throw it off.';
+}
+async function startAim(S) {
+  const btn = S.root.querySelector('.ag-aim'), rot = S.root.querySelector('.ag-rot');
+  if (S.aim) {
+    S.aim = false; S.cam = null; S.camv = null; S.offv = null;
+    listen(S, S.live);
+    btn.textContent = "Aim with my phone's camera"; rot.hidden = true; S.aimcap.textContent = '';
+    draw(S); return;
+  }
+  if (!(await sensorPermission(S.aimcap))) return;
+  S.aim = true; S.gotCam = false; listen(S, true);
+  btn.textContent = 'Stop aiming'; rot.hidden = false;
+  S.aimcap.innerHTML = 'Hold the phone up with its <b>back camera toward the sky</b> and move it until the ' +
+    '<b style="color:#5ef08f">green ring</b> sits on the <b style="color:#ff6f93">red target</b>. ' +
+    'Wave the phone in a figure-of-eight first to settle its compass. ' + declText(S);
+  setTimeout(() => { if (S.aim && !S.gotCam) S.aimcap.textContent = 'No motion-sensor readings from this device.'; }, 3000);
+  draw(S);
 }
 async function startLive(S) {
   if (S.live) {                                             // second tap switches it off
     S.live = false; S.heading = null;
-    window.removeEventListener('deviceorientationabsolute', S.handler, true);
-    window.removeEventListener('deviceorientation', S.handler, true);
+    listen(S, S.aim);
     S.root.querySelector('.ag-live').textContent = "Use my phone's compass";
     S.livecap.textContent = '';
     drawCompass(S);
     return;
   }
-  if (typeof DeviceOrientationEvent === 'undefined') { S.livecap.textContent = 'This device has no compass.'; return; }
-  try {
-    if (typeof DeviceOrientationEvent.requestPermission === 'function') {      // iOS asks first
-      const r = await DeviceOrientationEvent.requestPermission();
-      if (r !== 'granted') { S.livecap.textContent = 'Compass permission was refused.'; return; }
-    }
-  } catch (err) { S.livecap.textContent = 'The compass could not be started.'; return; }
-  S.handler = (e) => onOrient(S, e);
-  window.addEventListener('deviceorientationabsolute', S.handler, true);
-  window.addEventListener('deviceorientation', S.handler, true);
-  S.live = true; S.gotHeading = false;
+  if (!(await sensorPermission(S.livecap))) return;
+  S.live = true; S.gotHeading = false; listen(S, true);
   S.root.querySelector('.ag-live').textContent = 'Stop using the compass';
-  S.livecap.textContent = 'Hold the phone flat, top edge pointing ahead. Phone compasses can be off by 10-20° ' +
-    '(magnetic north, nearby metal); check against a landmark.';
+  S.livecap.textContent = 'Hold the phone flat, top edge pointing ahead. ' + declText(S) + ' Check against a landmark.';
   setTimeout(() => { if (S.live && !S.gotHeading) S.livecap.textContent = 'No compass readings from this device.'; }, 3000);
 }
 
@@ -115,8 +195,14 @@ function drawDome(S, i) {
   const d = S.d, { dome } = sizes(S);
   const g = canvasFor(S.dome, dome, dome);
   const cx = dome / 2, cy = dome / 2, R = dome / 2 - 18;
+  // aiming: turn the map so the direction the camera faces is at the bottom (then up on the screen is up
+  // in the sky and right is right, like a viewfinder); otherwise north at the top.
+  const turn = (S.cam && !S.northUp) ? S.cam.az - 180 : 0;
+  S.domecap.innerHTML = turn !== 0 || (S.cam && !S.northUp)
+    ? 'Sky map, looking up: it turns so <b>the way your camera faces is at the bottom</b>; the centre is straight overhead.'
+    : 'Sky map, looking up: north at the top, <b>east on the left</b>, the edge is the horizon.';
   const P = (alt, az) => {
-    const r = (90 - Math.max(alt, -2)) / 90 * R, a = az * Math.PI / 180;
+    const r = (90 - Math.max(alt, -2)) / 90 * R, a = (az - turn) * Math.PI / 180;
     return [cx - r * Math.sin(a), cy - r * Math.cos(a)];
   };
   const sun = d.sun[i];
@@ -177,6 +263,22 @@ function drawDome(S, i) {
   g.moveTo(tx, ty - 17); g.lineTo(tx, ty - 7); g.moveTo(tx, ty + 7); g.lineTo(tx, ty + 17); g.stroke();
   g.font = 'bold 12px system-ui, sans-serif'; g.fillStyle = '#ffffff'; g.textAlign = tx > cx ? 'right' : 'left';
   g.fillText(d.label + (up ? '' : ' (below the horizon)'), tx + (tx > cx ? -16 : 16), ty - 16);
+  // where the phone's camera points (aim mode)
+  if (S.cam) {
+    const [gx, gy] = P(S.cam.alt, S.cam.az), on = up && sepDeg(S.cam, d.alt[i], d.az[i]) < 2.5;
+    g.strokeStyle = '#5ef08f'; g.lineWidth = 3; g.setLineDash(S.cam.alt < 0 ? [5, 4] : []);
+    if (on) { g.fillStyle = 'rgba(94,240,143,0.28)'; g.beginPath(); g.arc(gx, gy, 19, 0, 2 * Math.PI); g.fill(); }
+    g.beginPath(); g.arc(gx, gy, 19, 0, 2 * Math.PI); g.stroke(); g.setLineDash([]);
+    g.beginPath();
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { g.moveTo(gx + 19 * dx, gy + 19 * dy); g.lineTo(gx + 27 * dx, gy + 27 * dy); }
+    g.stroke();
+    g.font = 'bold 11px system-ui, sans-serif'; g.fillStyle = '#5ef08f'; g.textAlign = 'center';
+    g.fillText(on ? 'ON TARGET' : (S.cam.alt < 0 ? 'camera (below horizon)' : 'camera'), gx, gy + 38);
+  }
+}
+function sepDeg(c, alt, az) {            // angle between the camera direction and the target, degrees
+  const s = Math.sin(c.alt * RAD) * Math.sin(alt * RAD) + Math.cos(c.alt * RAD) * Math.cos(alt * RAD) * Math.cos((c.az - az) * RAD);
+  return Math.acos(Math.max(-1, Math.min(1, s))) / RAD;
 }
 
 function drawCompass(S) {
@@ -184,7 +286,8 @@ function drawCompass(S) {
   const i = +S.slider.value, { comp } = sizes(S);
   const g = canvasFor(S.comp, comp, comp);
   const cx = comp / 2, cy = comp / 2, R = comp / 2 - 22;
-  const rot = S.heading === null ? 0 : -S.heading;          // dial turns with the phone
+  const hd = S.cam ? S.cam.az : S.heading;
+  const rot = hd === null ? 0 : -hd;                         // dial turns with the phone
   const ang = (deg) => (deg + rot - 90) * Math.PI / 180;     // 0 deg = up
   g.fillStyle = '#111927'; g.beginPath(); g.arc(cx, cy, R + 14, 0, 2 * Math.PI); g.fill();
   g.strokeStyle = '#3b4a66'; g.lineWidth = 2; g.beginPath(); g.arc(cx, cy, R, 0, 2 * Math.PI); g.stroke();
@@ -201,8 +304,8 @@ function drawCompass(S) {
     g.fillText(t, cx + (R + 1 - 26) * Math.cos(ang(a)), cy + (R + 1 - 26) * Math.sin(ang(a)));
   }
   // phone direction marker (top of the screen) in live mode
-  if (S.heading !== null) {
-    g.fillStyle = '#6fd0dc'; g.beginPath(); g.moveTo(cx, cy - R - 12); g.lineTo(cx - 7, cy - R + 2); g.lineTo(cx + 7, cy - R + 2);
+  if (hd !== null) {
+    g.fillStyle = S.cam ? '#5ef08f' : '#6fd0dc'; g.beginPath(); g.moveTo(cx, cy - R - 12); g.lineTo(cx - 7, cy - R + 2); g.lineTo(cx + 7, cy - R + 2);
     g.closePath(); g.fill();
   }
   // the arrow
@@ -228,7 +331,18 @@ function drawCompass(S) {
     txt = `<b>${d.label} is below the horizon at this time</b>` +
       (k >= 0 ? ` - it rises in the ${compass(d.az[k])} at about ${fmtTime(d.times[k], d.tz)}.` : ' for the rest of the night.');
   }
-  if (S.heading !== null && up) {
+  if (S.cam && up) {
+    const c = S.cam, dz = ((az - c.az + 540) % 360) - 180, dh = alt - c.alt, sep = sepDeg(c, alt, az);
+    const across = dz * Math.cos(((alt + c.alt) / 2) * RAD);                  // sideways angle on the sky
+    txt += `<br><span style="color:#5ef08f"><b>Camera:</b></span> ${compass(c.az)} (${Math.round(c.az)}°), ${Math.round(c.alt)}° up. `;
+    if (sep < 2.5) txt += '<b>On target</b> - the comet is in the middle of your camera view.';
+    else {
+      const parts = [];
+      if (Math.abs(dh) >= 1) parts.push(`<b>${dh > 0 ? 'up' : 'down'} ${Math.round(Math.abs(dh))}°</b>`);
+      if (Math.abs(across) >= 1) parts.push(`<b>${dz > 0 ? 'right' : 'left'} ${Math.round(Math.abs(dz))}°</b>`);
+      txt += `Move the phone ${parts.join(' and ')}` + (sep < 25 ? ' - it is already inside a normal camera view.' : '.');
+    }
+  } else if (S.heading !== null && up) {
     let turn = ((az - S.heading + 540) % 360) - 180;
     txt += `<br>Your phone points ${compass(S.heading)} (${Math.round(S.heading)}°): ` +
       (Math.abs(turn) < 8 ? '<b>you are facing it</b>' : `turn <b>${turn > 0 ? 'right' : 'left'} ${Math.abs(Math.round(turn))}°</b>`);
@@ -244,6 +358,8 @@ function update(S, d) {
   S.slider.max = d.times.length - 1;
   if (!prev || prev.nonce !== d.nonce) S.slider.value = d.initial;
   S.hint.innerHTML = d.hint || '';
+  S.aimrow.hidden = d.kind !== 'comet';
+  if (d.kind !== 'comet' && S.aim) startAim(S);
   draw(S);
 }
 
@@ -254,9 +370,6 @@ export default function (component) {
   if (data) update(S, data);
   return () => {
     if (S.ro) S.ro.disconnect();
-    if (S.handler) {
-      window.removeEventListener('deviceorientationabsolute', S.handler, true);
-      window.removeEventListener('deviceorientation', S.handler, true);
-    }
+    listen(S, false);
   };
 }

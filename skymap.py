@@ -16,6 +16,23 @@ from skyfield.api import Star
 import astro
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def declination(lat, lon, elev_m, when):
+    """Magnetic declination in degrees (east positive) from the World Magnetic Model 2025, or None.
+
+    Phone compasses point to magnetic north; adding this turns their readings into true bearings.
+    """
+    try:
+        from pygeomag import GeoMag
+        from pygeomag.wmm.wmm_2025 import WMM_2025
+        year = when.year + (when.timetuple().tm_yday - 0.5) / 366.0
+        r = GeoMag(coefficients_data=WMM_2025).calculate(glat=float(lat), glon=float(lon),
+                                                         alt=max(float(elev_m), 0.0) / 1000.0, time=year,
+                                                         allow_date_outside_lifespan=True)
+        return round(float(r.d), 2)
+    except Exception:
+        return None
 PLANETS = [('Moon', 'moon'), ('Venus', 'venus'), ('Mars', 'mars barycenter'), ('Jupiter', 'jupiter barycenter'),
            ('Saturn', 'saturn barycenter'), ('Mercury', 'mercury')]
 
@@ -67,4 +84,4 @@ def build(lat, lon, elev, tz, times, target, label, initial_time=None, kind='com
     return dict(tz=tz, label=label, kind=kind, hint=hint, times=[int(x.timestamp() * 1000) for x in times],
                 alt=np.round(talt, 1).tolist(), az=np.round(taz, 1).tolist(), sun=np.round(salt, 1).tolist(),
                 stars=star_frames, star_names=[n if (n and mags[i] <= 1.6) else '' for i, n in enumerate(names)],
-                bodies=bodies, moon_illum=illum, initial=initial)
+                bodies=bodies, moon_illum=illum, initial=initial, decl=declination(lat, lon, elev, times[0]))
