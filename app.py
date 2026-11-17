@@ -288,6 +288,14 @@ with st.expander('Settings: height, terrain distance, weather model, exact coord
 day = ss['day']
 model = wx.MODELS[ss.get('model') or list(wx.MODELS)[0]]
 height = float(ss.get('height', 1.7))
+
+
+def _footer():
+    """Credit line at the bottom of every page."""
+    st.divider()
+    st.markdown("<p style='text-align:center; font-size:0.9rem; margin:0 0 1rem 0;'>"
+                "Developed by Gerad Smith and Eleanor Bishop</p>", unsafe_allow_html=True)
+
 ground = float(ss['ground']) if ss.get('own_ground') and ss.get('ground') is not None else None
 
 if page == PAGES[1]:
@@ -295,6 +303,7 @@ if page == PAGES[1]:
     night_page.render(loc, tz, day, place_label, model,
                       (ground if ground is not None else float(ss.get('last_ground', 0.0))) + height,
                       functools.partial(_on_pick, 'nightmap'))
+    _footer()
     st.stop()
 
 if page == PAGES[2]:
@@ -307,6 +316,7 @@ if page == PAGES[2]:
         _prof = None
     _elev = _prof['h_obs'] if _prof else (ground if ground is not None else float(ss.get('last_ground', 0.0))) + height
     events_page.render(loc, tz, day, place_label, model, _elev, lambda key: functools.partial(_on_pick, key), _prof)
+    _footer()
     st.stop()
 
 with st.spinner('Reading the terrain, the sky and the forecast...'):
@@ -576,3 +586,5 @@ forecasts become uncertain after 2-3 days.
 - Maps: OpenStreetMap contributors, OpenTopoMap (CC BY-SA), Esri World Imagery; weather maps by Windy.com.
 - Map library: Leaflet 1.9.4 (BSD-2-Clause); place names: GeoNames (CC BY 4.0).
 """)
+
+_footer()
