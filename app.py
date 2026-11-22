@@ -15,6 +15,10 @@ import streamlit as st
 st.set_page_config(page_title='Afterglow', page_icon='assets/afterglow_icon.png', layout='wide',
                    initial_sidebar_state='collapsed')
 
+import desktop as dk  # noqa: E402  (desktop-only controls; inert on the hosted copy)
+
+dk.require_password(st)
+
 import functools
 
 import astro
@@ -295,6 +299,7 @@ def _footer():
     st.divider()
     st.markdown("<p style='text-align:center; font-size:0.9rem; margin:0 0 1rem 0;'>"
                 "Developed by Gerad Smith and Eleanor Bishop</p>", unsafe_allow_html=True)
+    dk.desktop_controls(st, on_cleared=st.cache_data.clear)
 
 ground = float(ss['ground']) if ss.get('own_ground') and ss.get('ground') is not None else None
 
@@ -387,7 +392,7 @@ if _mid:
     _d = _mid['utc'].astimezone(z).date()
     bits.append(f"<b>True midnight</b> {hm(_mid)}{_d.strftime(' %a') if _d != day else ''} (Sun {_mid['alt']:.0f}°)")
 bits.append(f"<b>Moon</b> {res['info']['moon_phase_name'].lower()}, {res['info']['moon_illum'] * 100:.0f}% lit")
-st.markdown('<p class="ag-light">' + ' &nbsp;·&nbsp; '.join(bits) + f' &nbsp;·&nbsp; times in {tz}</p>',
+st.markdown('<p class="ag-light">' + ' &nbsp;·&nbsp; '.join(bits) + f' &nbsp;·&nbsp; times in {html.escape(str(tz))}</p>',
             unsafe_allow_html=True)
 
 # ------------------------------------------------------------------------------------------

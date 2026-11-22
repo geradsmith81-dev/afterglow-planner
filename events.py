@@ -58,7 +58,7 @@ R_SUN = 695700.0                  # IAU 2015 nominal solar radius, km
 # (partial) contacts and magnitudes, k = 0.2722810 for the inner (total/annular) contacts and path limits.
 R_MOON = 0.2725076 * A_E           # 1738.09 km
 R_MOON_IN = 0.2722810 * A_E        # 1736.64 km
-CACHE = os.path.join(tempfile.gettempdir(), 'afterglow_data')
+CACHE = os.environ.get('AFTERGLOW_DATA_CACHE') or os.path.join(tempfile.gettempdir(), 'afterglow_data')
 _s = requests.Session()
 
 
