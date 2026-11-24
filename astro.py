@@ -216,10 +216,12 @@ def compute_day(lat, lon, elev_m, day, tz, profile=None, temp_c=None, pres_hpa=N
                                az=float(az[k]), alt=float(alt_app[k]), flat=flat))
 
     # --- rise / set: flat (almanac standard) and terrain
+    seen = {}
     for b in bodies:
         # standard: sea-level horizon, observer at the place (parallax) but no dip, std refraction
         alt_f, az_f, dist_f = positions(obs_flat, b, t)
         v = alt_f + refraction_deg(alt_f, STD_T, STD_P) + semidiameter_deg(b, dist_f)
+        seen[b] = dict(flat=v.copy())
         idx, rising = _crossings(v)
         fun = _limb_fn(obs_flat, b, hfn_flat, STD_T, STD_P)
         if len(idx):
@@ -229,6 +231,7 @@ def compute_day(lat, lon, elev_m, day, tz, profile=None, temp_c=None, pres_hpa=N
         if profile is not None:
             alt, az, dist = geo[b]
             v = alt + refraction_deg(alt, temp_c, pres_hpa) + semidiameter_deg(b, dist) - hfn_terrain(az)
+            seen[b]['terrain'] = v.copy()
             idx, rising = _crossings(v)
             fun = _limb_fn(obs, b, hfn_terrain, temp_c, pres_hpa)
             if len(idx):
@@ -286,8 +289,31 @@ def compute_day(lat, lon, elev_m, day, tz, profile=None, temp_c=None, pres_hpa=N
         if e['body'] == 'moon':
             e['illum'] = moon_phase(ts.from_datetime(e['utc']))[1]
     info = dict(moon_phase_deg=ang, moon_illum=frac, moon_phase_name=phase_name(ang),
-                temp_c=temp_c, pres_hpa=pres_hpa, elev_m=elev_m)
+                temp_c=temp_c, pres_hpa=pres_hpa, elev_m=elev_m,
+                visible={b: _visibility(seen[b], track[b + '_az'], start) for b in bodies})
     return dict(track=track, events=events, info=info, start=start, end=end)
+
+
+def _visibility(s, az, start):
+    """Is any part of the disc above the horizon at some moment of this local day?
+
+    s['flat']: top-edge altitude above the sea-level (almanac) horizon, per grid step;
+    s['terrain']: top-edge altitude minus the skyline at that azimuth (only with a terrain profile).
+    Returns flat_up / terrain_up (None without terrain), flat_minutes above the flat horizon, and
+    the closest approach to the skyline (time, azimuth, margin in degrees; negative = below).
+    """
+    def when(i):
+        return start + timedelta(seconds=float(i) * STEP_S)
+    f = s['flat']
+    up = np.where(f > 0)[0]
+    out = dict(flat_up=bool(len(up)), flat_minutes=int(round(len(up) * STEP_S / 60.0)), terrain_up=None)
+    m = s.get('terrain')
+    ref = m if m is not None else f
+    k = int(np.argmax(ref))
+    out.update(best_utc=when(k), best_az=float(az[k]), best_margin=float(ref[k]))
+    if m is not None:
+        out['terrain_up'] = bool(np.any(m > 0))
+    return out
 
 
 # ----------------------------------------------------------------------------------------

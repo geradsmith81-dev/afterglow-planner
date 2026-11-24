@@ -348,12 +348,58 @@ def flat_of(body, kind):
 # ------------------------------------------------------------------------------------------
 # key times
 # ------------------------------------------------------------------------------------------
+def never_seen(r, body):
+    """'terrain' if the skyline hides the body all day, 'below' if it never clears the horizon, else None."""
+    v = r['info'].get('visible', {}).get(body)
+    if not v:
+        return None
+    if v['terrain_up'] is None:                       # no terrain profile: flat horizon only
+        return None if v['flat_up'] else 'below'
+    if v['terrain_up']:
+        return None
+    return 'terrain' if v['flat_up'] else 'below'
+
+
+def not_seen_text(r, body, day):
+    """Plain statement that the Sun or Moon will not appear in the sky on this date, or None."""
+    why = never_seen(r, body)
+    if why is None:
+        return None
+    v = r['info']['visible'][body]
+    name = 'Sun' if body == 'sun' else 'Moon'
+    when = v['best_utc'].astimezone(z).strftime('%H:%M')
+    where = f"toward the {charts.compass(v['best_az'])}, azimuth {v['best_az']:.0f}°"
+    gap = abs(v['best_margin'])
+    head = f"**The {name} will not appear in the sky from this spot on {day:%A} {day.day} {day:%B %Y}.** "
+    if why == 'terrain':
+        hrs, mins = divmod(v['flat_minutes'], 60)
+        txt = (head + f"The surrounding terrain hides it all day. Over a flat, open horizon it would be up for "
+               f"about {hrs} h {mins:02d} min, but even at its closest ({when}, {where}) the top of the {name} "
+               f"stays {gap:.1f}° below the skyline.")
+        if gap < 1.0:
+            txt += (' It misses by less than a degree, so a gap in the skyline too small for the elevation model '
+                    'could still let it through.')
+        if body == 'sun':
+            txt += ' Daylight still reaches you from the sky, and higher slopes and clouds can still catch the sunlight.'
+    else:
+        txt = head + f"It stays below the horizon all day"
+        txt += ' (polar night).' if body == 'sun' else '.'
+        txt += f" At its highest ({when}, {where}) its top edge is {gap:.1f}° below the horizon."
+    return txt
+
+
 cards = []
 for body, kind, title in (('sun', 'rise', 'Sunrise'), ('sun', 'set', 'Sunset'),
                           ('moon', 'rise', 'Moonrise'), ('moon', 'set', 'Moonset')):
     e = pl.main_event(ev, body, kind)
     f = flat_of(body, kind)
-    if e is None:
+    hidden = never_seen(res, body)
+    if hidden:
+        e = None                                       # don't show an almanac time it never reaches
+        sub = 'hidden by terrain all day' if hidden == 'terrain' else 'below the horizon all day'
+        if f:
+            sub += f" · flat horizon {hm(f)}"
+    elif e is None:
         sub = 'not on this date'
     else:
         terrain_ev = not e['flat']
@@ -370,6 +416,10 @@ for body, kind, title in (('sun', 'rise', 'Sunrise'), ('sun', 'set', 'Sunset'),
     cards.append(f'<div class="ag-card ag-{body}{kind}"><div class="k">{title}</div>'
                  f'<div class="v">{hm(e)}</div><div class="s">{html.escape(sub)}</div></div>')
 st.markdown('<div class="ag-cards">' + ''.join(cards) + '</div>', unsafe_allow_html=True)
+for _b in ('sun', 'moon'):
+    _t = not_seen_text(res, _b, day)
+    if _t:
+        st.info(_t, icon=':material/landscape:' if never_seen(res, _b) == 'terrain' else ':material/dark_mode:')
 
 
 def span(k1, k2):
@@ -457,8 +507,15 @@ with t_out:
     rows = []
     for d in A['days']:
         cells = [f"<td>{d['day']:%a %d %b}</td>"]
+        _hid = never_seen(d['res'], 'sun')
         for kind in ('sunrise', 'sunset'):
             e, a = d[kind]['event'], d[kind]['assessment']
+            if _hid:
+                cells.append('<td>not seen <span style="color:#aab4c6">('
+                             + ('hidden by terrain' if _hid == 'terrain' else 'below the horizon') + ')</span></td><td>'
+                             + (f'<span class="ag-pill" style="background:{a["colour"]}">{a["score"]}</span> {a["label"]}'
+                                if a else '') + '</td>')
+                continue
             if e is None:
                 cells.append('<td>-</td><td></td>')
                 continue
